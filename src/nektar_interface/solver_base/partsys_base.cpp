@@ -13,7 +13,7 @@ ParticleSystemFactory &GetParticleSystemFactory() {
   return instance;
 }
 
-PartSysBase::PartSysBase(const ParticleReaderSharedPtr config,
+PartSysBase::PartSysBase(const NESOReaderSharedPtr config,
                          const SD::MeshGraphSharedPtr graph, MPI_Comm comm,
                          PartSysOptions options)
     : config(config), graph(graph), comm(comm),
@@ -66,41 +66,6 @@ bool PartSysBase::is_output_step(int step) {
 }
 
 void PartSysBase::read_params() {
-
-  // Read total number of particles / number per cell from config
-  int num_parts_per_cell, num_parts_tot;
-  this->config->load_parameter(NUM_PARTS_TOT_STR, num_parts_tot, -1);
-  this->config->load_parameter(NUM_PARTS_PER_CELL_STR, num_parts_per_cell, -1);
-
-  if (num_parts_tot > 0) {
-    this->num_parts_tot = num_parts_tot;
-    if (num_parts_per_cell > 0) {
-      nprint("Ignoring value of '" + NUM_PARTS_PER_CELL_STR +
-             "' because  "
-             "'" +
-             NUM_PARTS_TOT_STR + "' was specified.");
-    }
-  } else {
-    if (num_parts_per_cell > 0) {
-      // Determine the global number of elements
-      const int num_elements_local = this->graph->GetNumElements();
-      int num_elements_global;
-      MPICHK(MPI_Allreduce(&num_elements_local, &num_elements_global, 1,
-                           MPI_INT, MPI_SUM, this->comm));
-
-      // compute the global number of particles
-      this->num_parts_tot = ((int64_t)num_elements_global) * num_parts_per_cell;
-
-      report_param("Number of particles per cell/element", num_parts_per_cell);
-    } else {
-      nprint("Particles disabled (Neither '" + NUM_PARTS_TOT_STR +
-             "' or "
-             "'" +
-             NUM_PARTS_PER_CELL_STR + "' are set)");
-    }
-  }
-  report_param("Total number of particles", this->num_parts_tot);
-
   // Output frequency
   // ToDo Should probably be unsigned, but complicates use of LoadParameter
   this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
@@ -125,15 +90,19 @@ void PartSysBase::init_object() {
   this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
 
+  this->config->read_particles();
   // Create ParticleSpec
   this->init_spec();
+  this->read_params();
   // Create ParticleGroup
   this->particle_group = std::make_shared<ParticleGroup>(
       this->domain, this->particle_spec, this->sycl_target);
   this->cell_id_translation = std::make_shared<CellIDTranslation>(
       this->sycl_target, this->particle_group->cell_id_dat,
       this->particle_mesh_interface);
-  this->set_up_particles();
+
+  this->set_up_species();
+  this->set_up_boundaries();
 }
 
 } // namespace NESO::Particles

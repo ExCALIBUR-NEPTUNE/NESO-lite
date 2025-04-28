@@ -1,12 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File: particle_reader.cpp
+// File: neso_reader.cpp
 // Based on nektar/library/LibUtilities/BasicUtils/SessionReader.cpp
 // at https://gitlab.nektar.info/nektar by "Nektar++ developers"
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "../../../include/nektar_interface/solver_base/particle_reader.hpp"
+#include "../../../include/nektar_interface/solver_base/neso_reader.hpp"
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -33,12 +33,12 @@ using Nektar::ParseUtils;
 template <typename DataType>
 using MemoryManager = Nektar::MemoryManager<DataType>;
 
-namespace NESO::Particles {
+namespace NESO {
 /**
  *
  */
-void ParticleReader::parse_equals(const std::string &line, std::string &lhs,
-                                  std::string &rhs) {
+void NESOReader::parse_equals(const std::string &line, std::string &lhs,
+                              std::string &rhs) {
   /// Pull out lhs and rhs and eliminate any spaces.
   size_t beg = line.find_first_not_of(" ");
   size_t end = line.find_first_of("=");
@@ -62,14 +62,14 @@ void ParticleReader::parse_equals(const std::string &line, std::string &lhs,
   rhs = rhs.substr(0, rhs.find_last_not_of(" ") + 1);
 }
 
-void ParticleReader::read_info() {
+void NESOReader::read_info() {
   NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
 
   TiXmlHandle docHandle(&this->session->GetDocument());
   TiXmlElement *particles;
 
   // Look for all data in PARTICLES block.
-  particles = docHandle.FirstChildElement("NEKTAR")
+  particles = docHandle.FirstChildElement("NESO")
                   .FirstChildElement("PARTICLES")
                   .Element();
   if (!particles) {
@@ -122,7 +122,7 @@ void ParticleReader::read_info() {
 /**
  *
  */
-bool ParticleReader::defines_info(const std::string &name) const {
+bool NESOReader::defines_info(const std::string &name) const {
   std::string name_upper = boost::to_upper_copy(name);
   return this->particle_info.find(name_upper) != this->particle_info.end();
 }
@@ -134,7 +134,7 @@ bool ParticleReader::defines_info(const std::string &name) const {
  * @param   name       The name of a floating-point parameter.
  * @returns The value of the floating-point parameter.
  */
-const std::string &ParticleReader::get_info(const std::string &name) const {
+const std::string &NESOReader::get_info(const std::string &name) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto info_iter = this->particle_info.find(name);
 
@@ -144,7 +144,7 @@ const std::string &ParticleReader::get_info(const std::string &name) const {
   return info_iter->second;
 }
 
-void ParticleReader::read_parameters(TiXmlElement *particles) {
+void NESOReader::read_parameters(TiXmlElement *particles) {
   this->parameters.clear();
 
   TiXmlElement *parameters = particles->FirstChildElement("PARAMETERS");
@@ -204,7 +204,7 @@ void ParticleReader::read_parameters(TiXmlElement *particles) {
 /**
  *
  */
-bool ParticleReader::defines_parameter(const std::string &name) const {
+bool NESOReader::defines_parameter(const std::string &name) const {
   std::string name_upper = boost::to_upper_copy(name);
   return this->parameters.find(name_upper) != this->parameters.end();
 }
@@ -217,7 +217,7 @@ bool ParticleReader::defines_parameter(const std::string &name) const {
  * @param   name       The name of a floating-point parameter.
  * @returns The value of the floating-point parameter.
  */
-const NekDouble &ParticleReader::get_parameter(const std::string &name) const {
+const NekDouble &NESOReader::get_parameter(const std::string &name) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
 
@@ -227,7 +227,7 @@ const NekDouble &ParticleReader::get_parameter(const std::string &name) const {
   return param_iter->second;
 }
 
-void ParticleReader::read_species_sources(
+void NESOReader::read_species_sources(
     TiXmlElement *specie,
     std::vector<std::pair<int, LU::FunctionVariableMap>> &sources) {
   functions.clear();
@@ -400,7 +400,7 @@ void ParticleReader::read_species_sources(
   }
 }
 
-void ParticleReader::read_species_sinks(
+void NESOReader::read_species_sinks(
     TiXmlElement *specie, std::vector<LU::FunctionVariableMap> &sinks) {
   functions.clear();
 
@@ -560,7 +560,7 @@ void ParticleReader::read_species_sinks(
   }
 }
 
-void ParticleReader::read_species_initial(
+void NESOReader::read_species_initial(
     TiXmlElement *specie, std::pair<int, LU::FunctionVariableMap> &initial) {
 
   if (!specie) {
@@ -728,7 +728,7 @@ void ParticleReader::read_species_initial(
   initial = std::make_pair(N, function_var_map);
 }
 
-void ParticleReader::read_species(TiXmlElement *particles) {
+void NESOReader::read_species(TiXmlElement *particles) {
   TiXmlElement *species = particles->FirstChildElement("SPECIES");
   if (species) {
     TiXmlElement *specie = species->FirstChildElement("S");
@@ -804,7 +804,7 @@ void ParticleReader::read_species(TiXmlElement *particles) {
   }
 }
 
-void ParticleReader::read_boundary(TiXmlElement *particles) {
+void NESOReader::read_boundary(TiXmlElement *particles) {
   // Protect against multiple reads.
   if (this->boundary_conditions.size() != 0) {
     return;
@@ -964,7 +964,7 @@ void ParticleReader::read_boundary(TiXmlElement *particles) {
   }
 }
 
-void ParticleReader::read_reactions(TiXmlElement *particles) {
+void NESOReader::read_reactions(TiXmlElement *particles) {
   TiXmlElement *reactions_element = particles->FirstChildElement("REACTIONS");
   if (reactions_element) {
     TiXmlElement *reaction_r = reactions_element->FirstChildElement("R");
@@ -1044,7 +1044,7 @@ void ParticleReader::read_reactions(TiXmlElement *particles) {
   }
 }
 
-void ParticleReader::read_particles() {
+void NESOReader::read_particles() {
   // Check we actually have a document loaded.
   NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
 
@@ -1052,7 +1052,7 @@ void ParticleReader::read_particles() {
   TiXmlElement *particles;
 
   // Look for all data in PARTICLES block.
-  particles = docHandle.FirstChildElement("NEKTAR")
+  particles = docHandle.FirstChildElement("NESO")
                   .FirstChildElement("PARTICLES")
                   .Element();
 
@@ -1065,9 +1065,9 @@ void ParticleReader::read_particles() {
   read_reactions(particles);
 }
 
-void ParticleReader::load_species_parameter(const int species,
-                                            const std::string &name,
-                                            int &var) const {
+void NESOReader::load_species_parameter(const int species,
+                                        const std::string &name,
+                                        int &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto map = std::get<1>(this->species.at(species));
   auto param_iter = map.find(name_upper);
@@ -1077,9 +1077,9 @@ void ParticleReader::load_species_parameter(const int species,
   var = LU::checked_cast<int>(param);
 }
 
-void ParticleReader::load_species_parameter(const int species,
-                                            const std::string &name,
-                                            NekDouble &var) const {
+void NESOReader::load_species_parameter(const int species,
+                                        const std::string &name,
+                                        NekDouble &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto map = std::get<1>(this->species.at(species));
   auto param_iter = map.find(name_upper);
@@ -1088,14 +1088,15 @@ void ParticleReader::load_species_parameter(const int species,
   var = param_iter->second;
 }
 
-int ParticleReader::get_species_initial_N(const int species) const {
+int NESOReader::get_species_initial_N(const int species) const {
   return std::get<2>(this->species.at(species)).first;
 }
 /**
  *
  */
-LU::EquationSharedPtr ParticleReader::get_species_initial(
-    const int species, const std::string &pVariable, const int pDomain) const {
+LU::EquationSharedPtr
+NESOReader::get_species_initial(const int species, const std::string &pVariable,
+                                const int pDomain) const {
 
   LU::FunctionVariableMap function =
       std::get<2>(this->species.at(species)).second;
@@ -1128,9 +1129,9 @@ LU::EquationSharedPtr ParticleReader::get_species_initial(
 /**
  *
  */
-LU::EquationSharedPtr
-ParticleReader::get_species_initial(const int species, const unsigned int &pVar,
-                                    const int pDomain) const {
+LU::EquationSharedPtr NESOReader::get_species_initial(const int species,
+                                                      const unsigned int &pVar,
+                                                      const int pDomain) const {
   ASSERTL0(pVar < this->session->GetVariables().size(),
            "Variable index out of range.");
   return get_species_initial(species, this->session->GetVariables()[pVar],
@@ -1138,18 +1139,18 @@ ParticleReader::get_species_initial(const int species, const unsigned int &pVar,
 }
 
 const std::vector<std::pair<int, LU::FunctionVariableMap>> &
-ParticleReader::get_species_sources(const int species) const {
+NESOReader::get_species_sources(const int species) const {
   return std::get<3>(this->species.at(species));
 }
 
 const std::vector<LU::FunctionVariableMap> &
-ParticleReader::get_species_sinks(const int species) const {
+NESOReader::get_species_sinks(const int species) const {
   return std::get<4>(this->species.at(species));
 }
 
-void ParticleReader::load_reaction_parameter(const int reaction,
-                                             const std::string &name,
-                                             int &var) const {
+void NESOReader::load_reaction_parameter(const int reaction,
+                                         const std::string &name,
+                                         int &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto map = std::get<2>(this->reactions.at(reaction));
   auto param_iter = map.find(name_upper);
@@ -1159,9 +1160,9 @@ void ParticleReader::load_reaction_parameter(const int reaction,
   var = LU::checked_cast<int>(param);
 }
 
-void ParticleReader::load_reaction_parameter(const int reaction,
-                                             const std::string &name,
-                                             NekDouble &var) const {
+void NESOReader::load_reaction_parameter(const int reaction,
+                                         const std::string &name,
+                                         NekDouble &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto map = std::get<2>(this->reactions.at(reaction));
   auto param_iter = map.find(name_upper);
@@ -1173,7 +1174,7 @@ void ParticleReader::load_reaction_parameter(const int reaction,
 /**
  *
  */
-void ParticleReader::load_parameter(const std::string &name, int &var) const {
+void NESOReader::load_parameter(const std::string &name, int &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   NESOASSERT(param_iter != this->parameters.end(),
@@ -1185,8 +1186,8 @@ void ParticleReader::load_parameter(const std::string &name, int &var) const {
 /**
  *
  */
-void ParticleReader::load_parameter(const std::string &name, int &var,
-                                    const int &pDefault) const {
+void NESOReader::load_parameter(const std::string &name, int &var,
+                                const int &pDefault) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   if (param_iter != this->parameters.end()) {
@@ -1200,8 +1201,7 @@ void ParticleReader::load_parameter(const std::string &name, int &var,
 /**
  *
  */
-void ParticleReader::load_parameter(const std::string &name,
-                                    size_t &var) const {
+void NESOReader::load_parameter(const std::string &name, size_t &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   NESOASSERT(param_iter != this->parameters.end(),
@@ -1213,8 +1213,8 @@ void ParticleReader::load_parameter(const std::string &name,
 /**
  *
  */
-void ParticleReader::load_parameter(const std::string &name, size_t &var,
-                                    const size_t &pDefault) const {
+void NESOReader::load_parameter(const std::string &name, size_t &var,
+                                const size_t &pDefault) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   if (param_iter != this->parameters.end()) {
@@ -1228,8 +1228,7 @@ void ParticleReader::load_parameter(const std::string &name, size_t &var,
 /**
  *
  */
-void ParticleReader::load_parameter(const std::string &name,
-                                    NekDouble &var) const {
+void NESOReader::load_parameter(const std::string &name, NekDouble &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   NESOASSERT(param_iter != this->parameters.end(),
@@ -1240,8 +1239,8 @@ void ParticleReader::load_parameter(const std::string &name,
 /**
  *
  */
-void ParticleReader::load_parameter(const std::string &name, NekDouble &var,
-                                    const NekDouble &pDefault) const {
+void NESOReader::load_parameter(const std::string &name, NekDouble &var,
+                                const NekDouble &pDefault) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto param_iter = this->parameters.find(name_upper);
   if (param_iter != this->parameters.end()) {
@@ -1250,4 +1249,4 @@ void ParticleReader::load_parameter(const std::string &name, NekDouble &var,
     var = pDefault;
   }
 }
-} // namespace NESO::Particles
+} // namespace NESO

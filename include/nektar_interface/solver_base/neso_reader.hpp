@@ -1,13 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// File: particle_reader.hpp
+// File: neso_reader.hpp
 // Based on nektar/library/LibUtilities/BasicUtils/SessionReader.hpp
 // at https://gitlab.nektar.info/nektar by "Nektar++ developers"
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef __PARTICLE_READER_H_
-#define __PARTICLE_READER_H_
+#ifndef __NESO_READER_H_
+#define __NESO_READER_H_
 
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <neso_particles/typedefs.hpp>
@@ -15,7 +15,7 @@
 namespace LU = Nektar::LibUtilities;
 using Nektar::NekDouble;
 
-namespace NESO::Particles {
+namespace NESO {
 
 // {name, parameters, initial, sources}
 typedef std::tuple<std::string, LU::ParameterMap,
@@ -37,12 +37,12 @@ typedef std::map<int, SpeciesBoundaryList> ParticleBoundaryList;
 typedef std::tuple<std::string, std::vector<int>, LU::ParameterMap> ReactionMap;
 typedef std::map<int, ReactionMap> ReactionMapList;
 
-class ParticleReader;
-typedef std::shared_ptr<ParticleReader> ParticleReaderSharedPtr;
+class NESOReader;
+typedef std::shared_ptr<NESOReader> NESOReaderSharedPtr;
 
-class ParticleReader {
+class NESOReader {
 public:
-  ParticleReader(const LU::SessionReaderSharedPtr session)
+  NESOReader(const LU::SessionReaderSharedPtr session)
       : session(session), interpreter(session->GetInterpreter()) {};
 
   /// @brief Reads the particle tag from xml document

@@ -42,18 +42,18 @@ protected:
 
     /*
     Particle system type is defined in the same xml document as the Nektar++
-    settings <NEKTAR>
-    ...
+    settings
+    <NESO>
       <PARTICLES>
         <INFO>
           <I PROPERTY="PARTTYPE" VALUE="MyParticleSystem"/>
         </INFO>
       </PARTICLES>
-    </NEKTAR>
+    </NESO>
     */
     this->particles_enabled = false;
-    this->particle_config = std::make_shared<ParticleReader>(session);
-    if (session->DefinesElement("Nektar/Particles")) {
+    this->particle_config = std::make_shared<NESOReader>(session);
+    if (session->DefinesElement("Neso/Particles")) {
       this->particle_config->read_info();
       if (this->particle_config->defines_info("PARTTYPE")) {
         std::string part_sys_name = this->particle_config->get_info("PARTTYPE");
@@ -71,14 +71,14 @@ protected:
         this->particles_enabled = true;
         this->particle_sys->init_object();
       } else {
-        NESOASSERT(
+        NESOASSERT( 
             false,
             "PARTICLES element present in xml but PARTTYPE not specified.");
       }
     }
   }
 
-  ParticleReaderSharedPtr particle_config;
+  NESOReaderSharedPtr particle_config;
 
   /// Field name => index mapper
   NESO::NektarFieldIndexMap field_to_index;
