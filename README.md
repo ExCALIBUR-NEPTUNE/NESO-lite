@@ -1,4 +1,4 @@
-# NESO (Neptune Exploratory SOftware)
+# NESO-lite (Neptune Exploratory SOftware)
 
 This is a work-in-progress respository for exploring the implementation of 
 a series of tokamak exhaust relevant models combining high order finite
