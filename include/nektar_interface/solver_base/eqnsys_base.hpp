@@ -53,7 +53,7 @@ protected:
     */
     this->particles_enabled = false;
     this->particle_config = std::make_shared<NESOReader>(session);
-    if (session->DefinesElement("Neso/Particles")) {
+    if (session->DefinesElement("Nektar/Neso/Particles")) {
       this->particle_config->read_info();
       if (this->particle_config->defines_info("PARTTYPE")) {
         std::string part_sys_name = this->particle_config->get_info("PARTTYPE");

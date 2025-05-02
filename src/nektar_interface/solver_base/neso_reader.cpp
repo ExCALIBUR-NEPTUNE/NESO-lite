@@ -69,7 +69,8 @@ void NESOReader::read_info() {
   TiXmlElement *particles;
 
   // Look for all data in PARTICLES block.
-  particles = docHandle.FirstChildElement("NESO")
+  particles = docHandle.FirstChildElement("NEKTAR")
+                  .FirstChildElement("NESO")
                   .FirstChildElement("PARTICLES")
                   .Element();
   if (!particles) {
@@ -1052,7 +1053,8 @@ void NESOReader::read_particles() {
   TiXmlElement *particles;
 
   // Look for all data in PARTICLES block.
-  particles = docHandle.FirstChildElement("NESO")
+  particles = docHandle.FirstChildElement("NEKTAR")
+                  .FirstChildElement("NESO")
                   .FirstChildElement("PARTICLES")
                   .Element();
 
