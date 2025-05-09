@@ -34,7 +34,10 @@ enum class ParticleBoundaryConditionType {
 typedef std::map<int, ParticleBoundaryConditionType> SpeciesBoundaryList;
 typedef std::map<int, SpeciesBoundaryList> ParticleBoundaryList;
 
-typedef std::tuple<std::string, std::vector<int>, LU::ParameterMap> ReactionMap;
+typedef std::tuple<std::string, std::vector<int>,
+                   std::pair<std::string, NekDouble>,
+                   std::pair<std::string, NekDouble>>
+    ReactionMap;
 typedef std::map<int, ReactionMap> ReactionMapList;
 
 class NESOReader;
@@ -132,19 +135,6 @@ public:
   const std::vector<LU::FunctionVariableMap> &
   get_species_sinks(const int species) const;
 
-  /// @brief Loads a reaction parameter (int)
-  /// @param reaction
-  /// @param name
-  /// @param var
-  void load_reaction_parameter(const int reaction, const std::string &name,
-                               int &var) const;
-  /// @brief Loads a reaction parameter (double)
-  /// @param reaction
-  /// @param name
-  /// @param var
-  void load_reaction_parameter(const int reaction, const std::string &name,
-                               NekDouble &var) const;
-
   /// Load an integer parameter
   void load_parameter(const std::string &name, int &var) const;
   /// Load an size_t parameter
@@ -182,5 +172,5 @@ private:
                     std::string &rhs);
 };
 
-} // namespace NESO::Particles
+} // namespace NESO
 #endif

@@ -995,48 +995,16 @@ void NESOReader::read_reactions(TiXmlElement *particles) {
         std::get<1>(reaction_map).push_back(std::stoi(s));
       }
 
-      TiXmlElement *parameter = reaction_r->FirstChildElement("P");
-      while (parameter) {
-        std::stringstream tagcontent;
-        tagcontent << *parameter;
-        TiXmlNode *node = parameter->FirstChild();
-
-        while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
-          node = node->NextSibling();
-        }
-
-        if (node) {
-          // Format is "paramName = value"
-          std::string line = node->ToText()->Value(), lhs, rhs;
-
-          try {
-            parse_equals(line, lhs, rhs);
-          } catch (...) {
-            NESOASSERT(false, "Syntax error in parameter expression '" + line +
-                                  "' in XML element: \n\t'" + tagcontent.str() +
-                                  "'");
-          }
-
-          // We want the list of parameters to have their RHS
-          // evaluated, so we use the expression evaluator to do
-          // the dirty work.
-          if (!lhs.empty() && !rhs.empty()) {
-            NekDouble value = 0.0;
-            try {
-              LU::Equation expession(this->interpreter, rhs);
-              value = expession.Evaluate();
-            } catch (const std::runtime_error &) {
-              NESOASSERT(false, "Error evaluating parameter expression"
-                                " '" +
-                                    rhs + "' in XML element: \n\t'" +
-                                    tagcontent.str() + "'");
-            }
-            this->interpreter->SetParameter(lhs, value);
-            boost::to_upper(lhs);
-            std::get<2>(reaction_map)[lhs] = value;
-          }
-        }
-        parameter = parameter->NextSiblingElement();
+      TiXmlElement *rate = reaction_r->FirstChildElement("RATE");
+      std::get<2>(reaction_map).first = rate->Attribute("TYPE");
+      if (rate->Attribute("VALUE")) {
+        std::get<2>(reaction_map).second = std::stod(rate->Attribute("VALUE"));
+      }
+      TiXmlElement *cross_section =
+          reaction_r->FirstChildElement("CROSSSECTION");
+      std::get<3>(reaction_map).first = cross_section->Attribute("TYPE");
+      if (cross_section->Attribute("VALUE")) {
+        std::get<3>(reaction_map).second = std::stod(rate->Attribute("VALUE"));
       }
 
       reaction_r = reaction_r->NextSiblingElement("R");
@@ -1148,29 +1116,6 @@ NESOReader::get_species_sources(const int species) const {
 const std::vector<LU::FunctionVariableMap> &
 NESOReader::get_species_sinks(const int species) const {
   return std::get<4>(this->species.at(species));
-}
-
-void NESOReader::load_reaction_parameter(const int reaction,
-                                         const std::string &name,
-                                         int &var) const {
-  std::string name_upper = boost::to_upper_copy(name);
-  auto map = std::get<2>(this->reactions.at(reaction));
-  auto param_iter = map.find(name_upper);
-  NESOASSERT(param_iter != map.end(),
-             "Required parameter '" + name + "' not specified in session.");
-  NekDouble param = round(param_iter->second);
-  var = LU::checked_cast<int>(param);
-}
-
-void NESOReader::load_reaction_parameter(const int reaction,
-                                         const std::string &name,
-                                         NekDouble &var) const {
-  std::string name_upper = boost::to_upper_copy(name);
-  auto map = std::get<2>(this->reactions.at(reaction));
-  auto param_iter = map.find(name_upper);
-  NESOASSERT(param_iter != map.end(),
-             "Required parameter '" + name + "' not specified in session.");
-  var = param_iter->second;
 }
 
 /**
