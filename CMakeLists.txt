@@ -125,7 +125,9 @@ set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/particle_cell_mapping/x_map_bounding_box.cpp
     ${SRC_DIR}/nektar_interface/utilities.cpp
     ${SRC_DIR}/nektar_interface/solver_base/partsys_base.cpp
-    ${SRC_DIR}/nektar_interface/solver_base/neso_reader.cpp)
+    ${SRC_DIR}/nektar_interface/solver_base/neso_reader.cpp
+    ${SRC_DIR}/nektar_interface/solver_base/neso_session_function.cpp
+    )
 
 # set(LIB_SRC_FILES_IGNORE ${SRC_DIR}/main.cpp)
 check_file_list(${SRC_DIR} cpp "${LIB_SRC_FILES}" "${LIB_SRC_FILES_IGNORE}")
@@ -220,6 +222,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/special_functions.hpp
     ${INC_DIR}/nektar_interface/solver_base/empty_partsys.hpp
     ${INC_DIR}/nektar_interface/solver_base/neso_reader.hpp
+    ${INC_DIR}/nektar_interface/solver_base/neso_session_function.hpp
     ${INC_DIR}/nektar_interface/solver_base/partsys_base.hpp
     ${INC_DIR}/nektar_interface/solver_base/time_evolved_eqnsys_base.hpp
     ${INC_DIR}/nektar_interface/typedefs.hpp

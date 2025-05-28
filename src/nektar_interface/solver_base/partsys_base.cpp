@@ -102,7 +102,6 @@ void PartSysBase::init_object() {
       this->particle_mesh_interface);
 
   this->set_up_species();
-  this->set_up_boundaries();
 }
 
 } // namespace NESO::Particles

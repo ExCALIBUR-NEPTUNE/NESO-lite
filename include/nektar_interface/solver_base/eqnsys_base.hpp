@@ -52,11 +52,15 @@ protected:
     </NESO>
     */
     this->particles_enabled = false;
-    this->particle_config = std::make_shared<NESOReader>(session);
+    this->neso_config = std::make_shared<NESOReader>(session);
+    if(session->DefinesElement("Nektar/Neso/Species"))
+    {
+      this->neso_config->read_species();
+    }
     if (session->DefinesElement("Nektar/Neso/Particles")) {
-      this->particle_config->read_info();
-      if (this->particle_config->defines_info("PARTTYPE")) {
-        std::string part_sys_name = this->particle_config->get_info("PARTTYPE");
+      this->neso_config->read_info();
+      if (this->neso_config->defines_info("PARTTYPE")) {
+        std::string part_sys_name = this->neso_config->get_info("PARTTYPE");
         NESOASSERT(GetParticleSystemFactory().ModuleExists(part_sys_name),
                    "ParticleSystem '" + part_sys_name +
                        "' is not defined.\n"
@@ -67,7 +71,7 @@ protected:
         // solver-specific polymorphism
         this->particle_sys = std::static_pointer_cast<PARTSYS>(
             GetParticleSystemFactory().CreateInstance(part_sys_name,
-                                                      particle_config, graph));
+                                                      neso_config, graph));
         this->particles_enabled = true;
         this->particle_sys->init_object();
       } else {
@@ -78,7 +82,7 @@ protected:
     }
   }
 
-  NESOReaderSharedPtr particle_config;
+  NESOReaderSharedPtr neso_config;
 
   /// Field name => index mapper
   NESO::NektarFieldIndexMap field_to_index;
