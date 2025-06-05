@@ -108,6 +108,7 @@ public:
   get_species_function_filename_variable(int s, const std::string &name,
                                          const std::string &variable,
                                          const int pDomain = 0) const;
+  void read_species_functions(TiXmlElement *specie, LU::FunctionMap &map);
 
   /// @brief  Reads initial conditions for a species
   /// @param particles

@@ -137,6 +137,7 @@ void NESOReader::read_species() {
         }
         parameter = parameter->NextSiblingElement();
       }
+      read_species_functions(specie, std::get<2>(species_map));
       specie = specie->NextSiblingElement("S");
 
       this->species[std::stoi(id)] = species_map;
@@ -456,6 +457,186 @@ std::string NESOReader::get_species_function_filename_variable(
   }
 
   return it2->second.m_fileVariable;
+}
+
+void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& map) {
+  map.clear();
+
+  if (!specie) {
+    return;
+  }
+
+  // Scan through conditions section looking for functions.
+  TiXmlElement *function = specie->FirstChildElement("FUNCTION");
+
+  while (function) {
+    std::stringstream tagcontent;
+    tagcontent << *function;
+
+    // Every function must have a NAME attribute
+    NESOASSERT(function->Attribute("NAME"),
+             "Functions must have a NAME attribute defined in XML "
+             "element: \n\t'" +
+                 tagcontent.str() + "'");
+    std::string functionStr = function->Attribute("NAME");
+    NESOASSERT(!functionStr.empty(),
+             "Functions must have a non-empty name in XML "
+             "element: \n\t'" +
+                 tagcontent.str() + "'");
+
+    // Store function names in uppercase to remain case-insensitive.
+    boost::to_upper(functionStr);
+
+    // Retrieve first entry (variable, or file)
+    TiXmlElement *element = function;
+    TiXmlElement *variable = element->FirstChildElement();
+
+    // Create new function structure with default type of none.
+    LU::FunctionVariableMap functionVarMap;
+
+    // Process all entries in the function block
+    while (variable) {
+      LU::FunctionVariableDefinition funcDef;
+      std::string conditionType = variable->Value();
+
+      // If no var is specified, assume wildcard
+      std::string variableStr;
+      if (!variable->Attribute("VAR")) {
+        variableStr = "*";
+      } else {
+        variableStr = variable->Attribute("VAR");
+      }
+
+      // Parse list of variables
+      std::vector<std::string> variableList;
+      ParseUtils::GenerateVector(variableStr, variableList);
+
+      // If no domain is specified, put to 0
+      std::string domainStr;
+      if (!variable->Attribute("DOMAIN")) {
+        domainStr = "0";
+      } else {
+        domainStr = variable->Attribute("DOMAIN");
+      }
+
+      // Parse list of domains
+      std::vector<std::string> varSplit;
+      std::vector<unsigned int> domainList;
+      ParseUtils::GenerateSeqVector(domainStr, domainList);
+
+      // if no evars is specified, put "x y z t"
+      std::string evarsStr = "x y z t";
+      if (variable->Attribute("EVARS")) {
+        evarsStr = evarsStr + std::string(" ") + variable->Attribute("EVARS");
+      }
+
+      // Expressions are denoted by E
+      if (conditionType == "E") {
+        funcDef.m_type = LU::eFunctionTypeExpression;
+
+        // Expression must have a VALUE.
+        NESOASSERT(variable->Attribute("VALUE"),
+                 "Attribute VALUE expected for function '" + functionStr +
+                     "'.");
+        std::string fcnStr = variable->Attribute("VALUE");
+        NESOASSERT(!fcnStr.empty(),
+                 (std::string("Expression for var: ") + variableStr +
+                  std::string(" must be specified."))
+                     .c_str());
+
+        // set expression
+        funcDef.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
+            this->interpreter, fcnStr, evarsStr);
+      }
+
+      // Files are denoted by F
+      else if (conditionType == "F") {
+        // Check if transient or not
+        if (variable->Attribute("TIMEDEPENDENT") &&
+            boost::lexical_cast<bool>(variable->Attribute("TIMEDEPENDENT"))) {
+          funcDef.m_type = LU::eFunctionTypeTransientFile;
+        } else {
+          funcDef.m_type = LU::eFunctionTypeFile;
+        }
+
+        // File must have a FILE.
+        NESOASSERT(variable->Attribute("FILE"),
+                 "Attribute FILE expected for function '" + functionStr + "'.");
+        std::string filenameStr = variable->Attribute("FILE");
+        NESOASSERT(!filenameStr.empty(),
+                 "A filename must be specified for the FILE "
+                 "attribute of function '" +
+                     functionStr + "'.");
+
+        std::vector<std::string> fSplit;
+        boost::split(fSplit, filenameStr, boost::is_any_of(":"));
+        NESOASSERT(fSplit.size() == 1 || fSplit.size() == 2,
+                 "Incorrect filename specification in function " + functionStr +
+                     "'. "
+                     "Specify variables inside file as: "
+                     "filename:var1,var2");
+
+        // set the filename
+        fs::path fullpath = fSplit[0];
+        fs::path ftype = fullpath.extension();
+
+        if (fSplit.size() == 2) {
+          NESOASSERT(variableList[0] != "*",
+                   "Filename variable mapping not valid "
+                   "when using * as a variable inside "
+                   "function '" +
+                       functionStr + "'.");
+
+          boost::split(varSplit, fSplit[1], boost::is_any_of(","));
+          NESOASSERT(varSplit.size() == variableList.size(),
+                   "Filename variables should contain the "
+                   "same number of variables defined in "
+                   "VAR in function " +
+                       functionStr + "'.");
+        }
+      }
+
+      // Nothing else supported so throw an error
+      else {
+        std::stringstream tagcontent;
+        tagcontent << *variable;
+
+        NESOASSERT(false,
+                 "Identifier " + conditionType + " in function " +
+                     std::string(function->Attribute("NAME")) +
+                     " is not recognised in XML element: \n\t'" +
+                     tagcontent.str() + "'");
+      }
+
+      // Add variables to function
+      for (unsigned int i = 0; i < variableList.size(); ++i) {
+        for (unsigned int j = 0; j < domainList.size(); ++j) {
+          // Check it has not already been defined
+          std::pair<std::string, int> key(variableList[i], domainList[j]);
+          auto fcnsIter = functionVarMap.find(key);
+          NESOASSERT(fcnsIter == functionVarMap.end(),
+                   "Error setting expression '" + variableList[i] +
+                       " in domain " + std::to_string(domainList[j]) +
+                       "' in function '" + functionStr +
+                       "'. "
+                       "Expression has already been defined.");
+
+          if (varSplit.size() > 0) {
+            LU::FunctionVariableDefinition funcDef2 = funcDef;
+            funcDef2.m_fileVariable = varSplit[i];
+            functionVarMap[key] = funcDef2;
+          } else {
+            functionVarMap[key] = funcDef;
+          }
+        }
+      }
+      variable = variable->NextSiblingElement();
+    }
+
+    // Add function definition to map
+    map[functionStr] = functionVarMap;
+    function = function->NextSiblingElement("FUNCTION");
+  }
 }
 
 void NESOReader::read_particle_species_sources(
@@ -991,117 +1172,19 @@ void NESOReader::read_particle_species_boundary(
       while (condition_element) {
         // Check type.
         std::string condition_type = condition_element->Value();
-        std::string attr_data;
-        bool is_time_dependent = false;
 
-        // All species are specified, or else all species are zero.
-        TiXmlAttribute *attr = condition_element->FirstAttribute();
-
-        SpeciesMapList::iterator iter;
-        std::string attr_name;
-        attr_data = condition_element->Attribute("SPECIES");
-        int species_id = std::stoi(attr_data);
         if (condition_type == "C") {
-          if (attr_data.empty()) {
-            // All species are reflect.
-            boundary[boundary_region_id] =
-                ParticleBoundaryConditionType::eReflective;
-          } else {
-            if (attr) {
-              std::string equation, user_defined, filename;
 
-              while (attr) {
-
-                attr_name = attr->Name();
-
-                if (attr_name == "SPECIES") {
-                  // if VAR do nothing
-                } else if (attr_name == "VALUE") {
-                  NESOASSERT(
-                      attr_name == "VALUE",
-                      (std::string("Unknown attribute: ") + attr_name).c_str());
-
-                  attr_data = attr->Value();
-                  NESOASSERT(!attr_data.empty(),
-                             "VALUE attribute must be specified.");
-
-                } else {
-                  NESOASSERT(false, (std::string("Unknown boundary "
-                                                 "condition attribute: ") +
-                                     attr_name)
-                                        .c_str());
-                }
-                attr = attr->Next();
-              }
-              boundary[boundary_region_id] =
-                  ParticleBoundaryConditionType::eReflective;
-            }
-          }
+          // All species are reflect.
+          boundary[boundary_region_id] =
+              ParticleBoundaryConditionType::eReflective;
         }
 
         else if (condition_type == "P") {
-          if (attr_data.empty()) {
-            NESOASSERT(false, "Periodic boundary conditions should "
-                              "be explicitly defined");
-          } else {
-            if (attr) {
-              std::string user_defined;
-              std::vector<unsigned int> periodic_bnd_region_index;
-              while (attr) {
-                attr_name = attr->Name();
 
-                if (attr_name == "SPECIES") {
-                  // if VAR do nothing
-                } else if (attr_name == "user_definedTYPE") {
-                  // Do stuff for the user defined attribute
-                  attr_data = attr->Value();
-                  NESOASSERT(!attr_data.empty(),
-                             "user_definedTYPE attribute must have "
-                             "associated value.");
-
-                  user_defined = attr_data;
-                  is_time_dependent =
-                      boost::iequals(attr_data, "TimeDependent");
-                } else if (attr_name == "VALUE") {
-                  attr_data = attr->Value();
-                  NESOASSERT(!attr_data.empty(),
-                             "VALUE attribute must have associated "
-                             "value.");
-
-                  int beg = attr_data.find_first_of("[");
-                  int end = attr_data.find_first_of("]");
-                  std::string periodic_bnd_region_index_str =
-                      attr_data.substr(beg + 1, end - beg - 1);
-                  NESOASSERT(beg < end,
-                             (std::string("Error reading periodic "
-                                          "boundary region definition "
-                                          "for boundary region: ") +
-                              boundary_region_id_strm.str())
-                                 .c_str());
-
-                  bool parse_good = ParseUtils::GenerateSeqVector(
-                      periodic_bnd_region_index_str.c_str(),
-                      periodic_bnd_region_index);
-
-                  NESOASSERT(parse_good &&
-                                 (periodic_bnd_region_index.size() == 1),
-                             (std::string("Unable to read periodic boundary "
-                                          "condition for boundary "
-                                          "region: ") +
-                              boundary_region_id_strm.str())
-                                 .c_str());
-                }
-                attr = attr->Next();
-              }
-              boundary[boundary_region_id] =
-                  ParticleBoundaryConditionType::ePeriodic;
-            } else {
-              NESOASSERT(false, "Periodic boundary conditions should "
-                                "be explicitly defined");
-            }
-          }
+          boundary[boundary_region_id] =
+              ParticleBoundaryConditionType::ePeriodic;
         }
-
         condition_element = condition_element->NextSiblingElement();
       }
       region_element = region_element->NextSiblingElement("REGION");

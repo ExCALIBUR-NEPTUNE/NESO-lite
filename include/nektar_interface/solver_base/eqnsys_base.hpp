@@ -53,8 +53,7 @@ protected:
     */
     this->particles_enabled = false;
     this->neso_config = std::make_shared<NESOReader>(session);
-    if(session->DefinesElement("Nektar/Neso/Species"))
-    {
+    if (session->DefinesElement("Nektar/Neso/Species")) {
       this->neso_config->read_species();
     }
     if (session->DefinesElement("Nektar/Neso/Particles")) {
@@ -75,7 +74,7 @@ protected:
         this->particles_enabled = true;
         this->particle_sys->init_object();
       } else {
-        NESOASSERT( 
+        NESOASSERT(
             false,
             "PARTICLES element present in xml but PARTTYPE not specified.");
       }
@@ -159,7 +158,7 @@ protected:
    * Prevent further overrides to guarantee that subclasses do the same.
    * Subclasses can override post_solve() to add additional tasks.
    */
-  virtual void v_DoSolve() override final {
+  virtual void v_DoSolve() override {
     NEKEQNSYS::v_DoSolve();
     if (this->particle_sys) {
       this->particle_sys->free();
