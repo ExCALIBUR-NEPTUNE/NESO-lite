@@ -220,10 +220,10 @@ public:
                 const REAL p0 = phys0;
                 const REAL p1 = phys1;
                 const REAL p2 = phys2;
-                REAL k_xi0;
-                REAL k_xi1;
-                REAL k_xi2;
-                REAL residual;
+                REAL k_xi0 = 0.0;
+                REAL k_xi1 = 0.0;
+                REAL k_xi2 = 0.0;
+                REAL residual = 10.0;
                 bool cell_found = false;
 
                 for (int g2 = 0; (g2 <= k_grid_size_z) && (!cell_found); g2++) {
@@ -408,18 +408,8 @@ public:
               //// SYCL functions as we have used all the local memory already
               //// and the SYCL reduction functions also use local memory.
               for (int dimx = 0; dimx < 3; dimx++) {
-                {
-                  sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
-                                   sycl::memory_scope::device>
-                      ar(k_fdata[dimx + 3]);
-                  ar.fetch_max(f[dimx]);
-                }
-                {
-                  sycl::atomic_ref<REAL, sycl::memory_order::relaxed,
-                                   sycl::memory_scope::device>
-                      ar(k_fdata[dimx]);
-                  ar.fetch_min(f[dimx]);
-                }
+                atomic_fetch_max(&k_fdata[dimx + 3], f[dimx]);
+                atomic_fetch_min(&k_fdata[dimx], f[dimx]);
               }
             });
       }));

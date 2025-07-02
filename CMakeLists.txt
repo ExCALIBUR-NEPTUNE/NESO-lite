@@ -9,10 +9,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
+option(ENABLE_NESO_PROFILING "Enable built-in profiling" OFF)
+option(NESO_BUILD_SOLVERS "Build the built-in solvers" ON)
 option(NESO_BUILD_TESTS
        "Build unit tests for this project and register with ctest" ON)
-option(ENABLE_NESO_PROFILING "Enable built in profiling" OFF)
-option(NESO_BUILD_SOLVERS "Build the built in solvers" ON)
+option(NESO_BUILD_TOOLS "Builds supplemental tools." ON)
 
 # Various sanitizers, including coverage and address sanitizer
 include(cmake/Sanitizers.cmake)
@@ -207,6 +208,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_pyr.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_quad_embed_3d.hpp
+    ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_relative_exit_tolerances.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_triangle_embed_3d.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/newton_tet.hpp
     ${INC_DIR}/nektar_interface/particle_cell_mapping/particle_cell_mapping.hpp
@@ -267,6 +269,11 @@ find_package(MPI REQUIRED)
 # Solvers
 if(NESO_BUILD_SOLVERS)
   add_subdirectory(solvers)
+endif()
+
+# Tools
+if(NESO_BUILD_TOOLS)
+  add_subdirectory(tools)
 endif()
 
 # Include test directory
