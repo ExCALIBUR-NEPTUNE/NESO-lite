@@ -459,7 +459,8 @@ std::string NESOReader::get_species_function_filename_variable(
   return it2->second.m_fileVariable;
 }
 
-void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& map) {
+void NESOReader::read_species_functions(TiXmlElement *specie,
+                                        LU::FunctionMap &map) {
   map.clear();
 
   if (!specie) {
@@ -475,14 +476,14 @@ void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& m
 
     // Every function must have a NAME attribute
     NESOASSERT(function->Attribute("NAME"),
-             "Functions must have a NAME attribute defined in XML "
-             "element: \n\t'" +
-                 tagcontent.str() + "'");
+               "Functions must have a NAME attribute defined in XML "
+               "element: \n\t'" +
+                   tagcontent.str() + "'");
     std::string functionStr = function->Attribute("NAME");
     NESOASSERT(!functionStr.empty(),
-             "Functions must have a non-empty name in XML "
-             "element: \n\t'" +
-                 tagcontent.str() + "'");
+               "Functions must have a non-empty name in XML "
+               "element: \n\t'" +
+                   tagcontent.str() + "'");
 
     // Store function names in uppercase to remain case-insensitive.
     boost::to_upper(functionStr);
@@ -536,13 +537,13 @@ void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& m
 
         // Expression must have a VALUE.
         NESOASSERT(variable->Attribute("VALUE"),
-                 "Attribute VALUE expected for function '" + functionStr +
-                     "'.");
+                   "Attribute VALUE expected for function '" + functionStr +
+                       "'.");
         std::string fcnStr = variable->Attribute("VALUE");
         NESOASSERT(!fcnStr.empty(),
-                 (std::string("Expression for var: ") + variableStr +
-                  std::string(" must be specified."))
-                     .c_str());
+                   (std::string("Expression for var: ") + variableStr +
+                    std::string(" must be specified."))
+                       .c_str());
 
         // set expression
         funcDef.m_expression = MemoryManager<LU::Equation>::AllocateSharedPtr(
@@ -561,20 +562,22 @@ void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& m
 
         // File must have a FILE.
         NESOASSERT(variable->Attribute("FILE"),
-                 "Attribute FILE expected for function '" + functionStr + "'.");
+                   "Attribute FILE expected for function '" + functionStr +
+                       "'.");
         std::string filenameStr = variable->Attribute("FILE");
         NESOASSERT(!filenameStr.empty(),
-                 "A filename must be specified for the FILE "
-                 "attribute of function '" +
-                     functionStr + "'.");
+                   "A filename must be specified for the FILE "
+                   "attribute of function '" +
+                       functionStr + "'.");
 
         std::vector<std::string> fSplit;
         boost::split(fSplit, filenameStr, boost::is_any_of(":"));
         NESOASSERT(fSplit.size() == 1 || fSplit.size() == 2,
-                 "Incorrect filename specification in function " + functionStr +
-                     "'. "
-                     "Specify variables inside file as: "
-                     "filename:var1,var2");
+                   "Incorrect filename specification in function " +
+                       functionStr +
+                       "'. "
+                       "Specify variables inside file as: "
+                       "filename:var1,var2");
 
         // set the filename
         fs::path fullpath = fSplit[0];
@@ -582,17 +585,17 @@ void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& m
 
         if (fSplit.size() == 2) {
           NESOASSERT(variableList[0] != "*",
-                   "Filename variable mapping not valid "
-                   "when using * as a variable inside "
-                   "function '" +
-                       functionStr + "'.");
+                     "Filename variable mapping not valid "
+                     "when using * as a variable inside "
+                     "function '" +
+                         functionStr + "'.");
 
           boost::split(varSplit, fSplit[1], boost::is_any_of(","));
           NESOASSERT(varSplit.size() == variableList.size(),
-                   "Filename variables should contain the "
-                   "same number of variables defined in "
-                   "VAR in function " +
-                       functionStr + "'.");
+                     "Filename variables should contain the "
+                     "same number of variables defined in "
+                     "VAR in function " +
+                         functionStr + "'.");
         }
       }
 
@@ -601,11 +604,10 @@ void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& m
         std::stringstream tagcontent;
         tagcontent << *variable;
 
-        NESOASSERT(false,
-                 "Identifier " + conditionType + " in function " +
-                     std::string(function->Attribute("NAME")) +
-                     " is not recognised in XML element: \n\t'" +
-                     tagcontent.str() + "'");
+        NESOASSERT(false, "Identifier " + conditionType + " in function " +
+                              std::string(function->Attribute("NAME")) +
+                              " is not recognised in XML element: \n\t'" +
+                              tagcontent.str() + "'");
       }
 
       // Add variables to function
@@ -615,11 +617,11 @@ void NESOReader::read_species_functions(TiXmlElement *specie, LU::FunctionMap& m
           std::pair<std::string, int> key(variableList[i], domainList[j]);
           auto fcnsIter = functionVarMap.find(key);
           NESOASSERT(fcnsIter == functionVarMap.end(),
-                   "Error setting expression '" + variableList[i] +
-                       " in domain " + std::to_string(domainList[j]) +
-                       "' in function '" + functionStr +
-                       "'. "
-                       "Expression has already been defined.");
+                     "Error setting expression '" + variableList[i] +
+                         " in domain " + std::to_string(domainList[j]) +
+                         "' in function '" + functionStr +
+                         "'. "
+                         "Expression has already been defined.");
 
           if (varSplit.size() > 0) {
             LU::FunctionVariableDefinition funcDef2 = funcDef;
