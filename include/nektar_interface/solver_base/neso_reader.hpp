@@ -47,6 +47,10 @@ typedef std::tuple<std::string, std::vector<int>,
                    std::pair<std::string, NekDouble>>
     ReactionMap;
 typedef std::map<int, ReactionMap> ReactionMapList;
+typedef std::tuple<std::string, std::vector<int>, std::vector<int>,
+                   std::pair<std::string, NekDouble>>
+    SurfaceReactionMap;
+typedef std::map<int, SurfaceReactionMap> SurfaceReactionMapList;
 
 class NESOReader;
 typedef std::shared_ptr<NESOReader> NESOReaderSharedPtr;
@@ -146,6 +150,13 @@ public:
     return this->reactions;
   }
 
+  /// @brief Reads surface reactions
+  /// @param particles
+  void read_surface_reactions(TiXmlElement *particles);
+  inline const SurfaceReactionMapList &get_surface_reactions() const {
+    return this->surface_reactions;
+  }
+
   /// @param species
   /// @param name
   /// @param var
@@ -212,6 +223,7 @@ private:
 
   // Reactions
   ReactionMapList reactions;
+  SurfaceReactionMapList surface_reactions;
 
   void parse_equals(const std::string &line, std::string &lhs,
                     std::string &rhs);

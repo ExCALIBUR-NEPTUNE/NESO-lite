@@ -1319,6 +1319,59 @@ void NESOReader::read_reactions(TiXmlElement *particles) {
   }
 }
 
+void NESOReader::read_surface_reactions(TiXmlElement *particles) {
+  TiXmlElement *reactions_element = particles->FirstChildElement("REACTIONS");
+  if (reactions_element) {
+    TiXmlElement *reaction_r = reactions_element->FirstChildElement("S");
+
+    while (reaction_r) {
+      std::stringstream tagcontent;
+      tagcontent << *reaction_r;
+      std::string id = reaction_r->Attribute("ID");
+      NESOASSERT(!id.empty(), "Missing ID attribute in Reaction XML "
+                              "element: \n\t'" +
+                                  tagcontent.str() + "'");
+      std::string type = reaction_r->Attribute("TYPE");
+      NESOASSERT(!type.empty(),
+                 "TYPE attribute must be non-empty in XML element:\n\t'" +
+                     tagcontent.str() + "'");
+      SurfaceReactionMap reaction_map;
+      std::get<0>(reaction_map) = type;
+      std::string species = reaction_r->Attribute("SPECIES");
+      std::vector<std::string> species_list;
+      boost::split(species_list, species, boost::is_any_of(","));
+
+      for (const auto &s : species_list) {
+        NESOASSERT(this->species.find(std::stoi(s)) != this->species.end(),
+                   "Species '" + s +
+                       "' not found.  Ensure it is specified under the "
+                       "<SPECIES> tag");
+        std::get<1>(reaction_map).push_back(std::stoi(s));
+      }
+
+      TiXmlElement *region = reaction_r->FirstChildElement("REGION");
+
+      if (region->Attribute("REF")) {
+        std::vector<std::string> region_list;
+        boost::split(region_list, region->Attribute("REF"),
+                     boost::is_any_of(","));
+        for (const auto &r : region_list) {
+          std::get<2>(reaction_map).push_back(std::stoi(r));
+        }
+      }
+
+      TiXmlElement *rate = reaction_r->FirstChildElement("RATE");
+      std::get<3>(reaction_map).first = rate->Attribute("TYPE");
+      if (rate->Attribute("VALUE")) {
+        std::get<3>(reaction_map).second = std::stod(rate->Attribute("VALUE"));
+      }
+
+      reaction_r = reaction_r->NextSiblingElement("S");
+      this->surface_reactions[std::stoi(id)] = reaction_map;
+    }
+  }
+}
+
 void NESOReader::read_particles() {
   // Check we actually have a document loaded.
   NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
