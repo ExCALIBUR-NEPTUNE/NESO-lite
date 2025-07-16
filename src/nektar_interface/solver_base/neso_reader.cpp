@@ -1391,6 +1391,7 @@ void NESOReader::read_particles() {
   read_parameters(particles);
   read_particle_species(particles);
   read_reactions(particles);
+  read_surface_reactions(particles);
 }
 
 void NESOReader::load_particle_species_parameter(const int s,
