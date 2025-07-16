@@ -84,6 +84,11 @@ public:
   /// Returns the value of the specified parameter.
   const NekDouble &get_parameter(const std::string &name) const;
   std::vector<std::string> get_species_variables(int s) const;
+  void load_species_parameter(const int s, const std::string &name,
+                              int &var) const;
+
+  void load_species_parameter(const int s, const std::string &name,
+                              NekDouble &var) const;
   bool defines_species_function(int s, const std::string &name) const;
 
   LU::EquationSharedPtr get_species_function(int s, const std::string &name,

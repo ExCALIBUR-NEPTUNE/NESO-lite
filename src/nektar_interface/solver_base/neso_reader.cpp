@@ -311,6 +311,27 @@ const NekDouble &NESOReader::get_parameter(const std::string &name) const {
   return param_iter->second;
 }
 
+void NESOReader::load_species_parameter(const int s, const std::string &name,
+                                        int &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<1>(this->species.at(s));
+  auto param_iter = map.find(name_upper);
+  NESOASSERT(param_iter != map.end(),
+             "Required parameter '" + name + "' not specified in session.");
+  NekDouble param = round(param_iter->second);
+  var = LU::checked_cast<int>(param);
+}
+
+void NESOReader::load_species_parameter(const int s, const std::string &name,
+                                        NekDouble &var) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<1>(this->species.at(s));
+  auto param_iter = map.find(name_upper);
+  NESOASSERT(param_iter != map.end(),
+             "Required parameter '" + name + "' not specified in session.");
+  var = param_iter->second;
+}
+
 std::vector<std::string> NESOReader::get_species_variables(int s) const {}
 bool NESOReader::defines_species_function(int s,
                                           const std::string &name) const {
