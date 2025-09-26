@@ -7,9 +7,9 @@ spack:
   specs:
     - neso%oneapi ^dpcpp ^nektar^intel-oneapi-mkl ^intel-oneapi-mpi
     - neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=omplibraryonly
-    - neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=ompaccelerated
-    - neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudanvcxx
-    - neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudallvm cuda_arch=89
+    #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=ompaccelerated
+    #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudanvcxx
+    #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudallvm cuda_arch=89
   view:
     adaptivecpp:
       root: views/adaptivecpp
