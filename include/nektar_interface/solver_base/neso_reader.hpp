@@ -12,6 +12,7 @@
 #include <LibUtilities/BasicUtils/SessionReader.h>
 #include <SpatialDomains/Conditions.h>
 #include <neso_particles/typedefs.hpp>
+#include <optional>
 
 namespace LU = Nektar::LibUtilities;
 namespace SD = Nektar::SpatialDomains;
@@ -34,11 +35,16 @@ enum class ParticleBoundaryConditionType {
 typedef std::map<int, ParticleBoundaryConditionType>
     ParticleSpeciesBoundaryList;
 
+enum class ParticleSourceType { ePoint, eBulk, eSurface };
+// {number, type, (boundary), variables}
+typedef std::tuple<int, ParticleSourceType, std::optional<int>, LU::FunctionVariableMap>
+    ParticleSource;
+
 // {name, parameters, initial, sources, sinks, boundary}
 typedef std::tuple<
     std::string, LU::ParameterMap, std::pair<int, LU::FunctionVariableMap>,
-    std::vector<std::pair<int, LU::FunctionVariableMap>>,
-    std::vector<LU::FunctionVariableMap>, ParticleSpeciesBoundaryList>
+    std::vector<ParticleSource>, std::vector<LU::FunctionVariableMap>,
+    ParticleSpeciesBoundaryList>
     ParticleSpeciesMap;
 typedef std::map<int, ParticleSpeciesMap> ParticleSpeciesMapList;
 
@@ -130,7 +136,7 @@ public:
   /// @param sources
   void read_particle_species_sources(
       TiXmlElement *particles,
-      std::vector<std::pair<int, LU::FunctionVariableMap>> &sources);
+      std::vector<ParticleSource> &sources);
 
   /// @brief  Reads the sinks defined for a species
   /// @param particles
@@ -178,15 +184,9 @@ public:
   int get_particle_species_initial_N(const int species) const;
 
   /// Returns an EquationSharedPtr to a given function variable.
-  LU::EquationSharedPtr
-  get_particle_species_initial(const int species, const std::string &variable,
-                               const int pDomain = 0) const;
-  /// Returns an EquationSharedPtr to a given function variable index.
-  LU::EquationSharedPtr
-  get_particle_species_initial(const int species, const unsigned int &var,
-                               const int pDomain = 0) const;
+  LU::FunctionVariableMap get_particle_species_initial(const int species) const;
 
-  const std::vector<std::pair<int, LU::FunctionVariableMap>> &
+  const std::vector<ParticleSource> &
   get_particle_species_sources(const int species) const;
 
   const std::vector<LU::FunctionVariableMap> &

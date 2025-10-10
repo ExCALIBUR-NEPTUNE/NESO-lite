@@ -663,25 +663,42 @@ void NESOReader::read_species_functions(TiXmlElement *specie,
 }
 
 void NESOReader::read_particle_species_sources(
-    TiXmlElement *specie,
-    std::vector<std::pair<int, LU::FunctionVariableMap>> &sources) {
+    TiXmlElement *specie, std::vector<ParticleSource> &sources) {
   if (!specie) {
     return;
   }
 
-  // Scan through conditions section looking for functions.
-  TiXmlElement *function = specie->FirstChildElement("SOURCE");
+  // Scan through conditions section looking for sources.
+  TiXmlElement *sources_xml = specie->FirstChildElement("SOURCES");
+  TiXmlElement *source = sources_xml->FirstChildElement();
 
-  while (function) {
+  while (source) {
     std::stringstream tagcontent;
-    tagcontent << *function;
+    tagcontent << *source;
 
-    // Every function must have a NAME attribute
-    NESOASSERT(function->Attribute("N"),
+    std::optional<int> boundary = std::nullopt;
+
+    std::string source_type_str = source->Value();
+
+    ParticleSourceType source_type;
+    if (source_type_str == "P") {
+      source_type = ParticleSourceType::ePoint;
+    } else if (source_type_str == "B") {
+      source_type = ParticleSourceType::eBulk;
+    } else if (source_type_str == "S") {
+      source_type = ParticleSourceType::eSurface;
+      std::string boundary_str = source->Attribute("REF");
+      boundary = std::stoi(boundary_str);
+    } else {
+      NESOASSERT(false, "Unrecognised source type");
+    }
+
+    // Every source must have N number attribute
+    NESOASSERT(source->Attribute("N"),
                "Sources must have N attribute defined in XML "
                "element: \n\t'" +
                    tagcontent.str() + "'");
-    std::string N_str = function->Attribute("N");
+    std::string N_str = source->Attribute("N");
     NESOASSERT(!N_str.empty(), "Sources must have a non-empty N in XML "
                                "element: \n\t'" +
                                    tagcontent.str() + "'");
@@ -689,8 +706,7 @@ void NESOReader::read_particle_species_sources(
     int N = std::stoi(N_str);
 
     // Retrieve first entry (variable, or file)
-    TiXmlElement *element = function;
-    TiXmlElement *variable = element->FirstChildElement();
+    TiXmlElement *variable = source->FirstChildElement();
 
     // Create new function structure with default type of none.
     LU::FunctionVariableMap function_var_map;
@@ -798,7 +814,7 @@ void NESOReader::read_particle_species_sources(
         tagcontent << *variable;
 
         NESOASSERT(false, "Identifier " + condition_type + " in function " +
-                              std::string(function->Attribute("NAME")) +
+                              std::string(source->Attribute("NAME")) +
                               " is not recognised in XML element: \n\t'" +
                               tagcontent.str() + "'");
       }
@@ -828,8 +844,9 @@ void NESOReader::read_particle_species_sources(
     }
 
     // Add function definition to map
-    sources.push_back(std::make_pair(N, function_var_map));
-    function = function->NextSiblingElement("SOURCE");
+    sources.push_back(
+        std::make_tuple(N, source_type, boundary, function_var_map));
+    source = source->NextSiblingElement();
   }
 }
 
@@ -1444,50 +1461,12 @@ int NESOReader::get_particle_species_initial_N(const int s) const {
 /**
  *
  */
-LU::EquationSharedPtr NESOReader::get_particle_species_initial(
-    const int s, const std::string &pVariable, const int pDomain) const {
-
-  LU::FunctionVariableMap function =
-      std::get<2>(this->particle_species.at(s)).second;
-
-  // Check for specific and wildcard definitions
-  std::pair<std::string, int> key(pVariable, pDomain);
-  std::pair<std::string, int> defkey("*", pDomain);
-
-  auto it2 = function.find(key);
-  auto it3 = function.find(defkey);
-  bool specific = it2 != function.end();
-  bool wildcard = it3 != function.end();
-
-  // Check function is defined somewhere
-  ASSERTL0(specific || wildcard, "No such variable " + pVariable +
-                                     " in domain " +
-                                     boost::lexical_cast<std::string>(pDomain) +
-                                     " defined for INITIAL in session file.");
-
-  // If not specific, must be wildcard
-  if (!specific) {
-    it2 = it3;
-  }
-
-  ASSERTL0((it2->second.m_type == LU::eFunctionTypeExpression),
-           std::string("Function is defined by a file."));
-  return it2->second.m_expression;
+LU::FunctionVariableMap
+NESOReader::get_particle_species_initial(const int s) const {
+  return std::get<2>(this->particle_species.at(s)).second;
 }
 
-/**
- *
- */
-LU::EquationSharedPtr
-NESOReader::get_particle_species_initial(const int s, const unsigned int &pVar,
-                                         const int pDomain) const {
-  ASSERTL0(pVar < this->session->GetVariables().size(),
-           "Variable index out of range.");
-  return get_particle_species_initial(s, this->session->GetVariables()[pVar],
-                                      pDomain);
-}
-
-const std::vector<std::pair<int, LU::FunctionVariableMap>> &
+const std::vector<ParticleSource> &
 NESOReader::get_particle_species_sources(const int s) const {
   return std::get<3>(this->particle_species.at(s));
 }
