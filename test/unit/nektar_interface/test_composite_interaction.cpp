@@ -272,6 +272,8 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
     GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsg(rank, sg.first,
                                                                sg.second);
     GeometryTransport::RemoteGeom<SpatialDomains::SegGeom> rsgd;
+    rsg.aux_int_properties.push_back(42);
+    rsg.aux_int_properties.push_back(-1);
     const std::size_t num_bytes = rsg.get_num_bytes();
     std::vector<std::byte> bytes(num_bytes);
     rsg.serialise(bytes.data(), num_bytes);
@@ -279,6 +281,9 @@ TEST(CompositeInteraction, GeometryTransportAllD) {
     auto dg = rsgd.geom;
     ASSERT_TRUE(dg.get() != nullptr);
     lambda_compare_edges(sg.second, dg);
+    ASSERT_EQ(rsgd.aux_int_properties.size(), 2);
+    ASSERT_EQ(rsgd.aux_int_properties.at(0), 42);
+    ASSERT_EQ(rsgd.aux_int_properties.at(1), -1);
   }
 
   auto lambda_compare_faces = [&](auto A, auto B) {
@@ -440,15 +445,18 @@ TEST_P(CompositeInteractionAllD, GeometryTransport) {
     for (auto gx : remote_quads) {
       geom_int.push_back(gx->id);
       lambda_push_data(gx->geom);
+      ASSERT_EQ(gx->rank, composite_transport->get_owning_rank(gx->id));
     }
     for (auto gx : remote_tris) {
       geom_int.push_back(gx->id);
       lambda_push_data(gx->geom);
+      ASSERT_EQ(gx->rank, composite_transport->get_owning_rank(gx->id));
     }
   } else if (ndim == 2) {
     for (auto gx : remote_segments) {
       geom_int.push_back(gx->id);
       lambda_push_data(gx->geom);
+      ASSERT_EQ(gx->rank, composite_transport->get_owning_rank(gx->id));
     }
   }
 
@@ -798,6 +806,13 @@ TEST_P(CompositeInteractionAllD, Intersection) {
   if (!A->contains_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"))) {
     A->add_particle_dat(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"), 2);
   }
+  if (!A->contains_dat(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS"))) {
+    A->add_particle_dat(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS"),
+                        ndim - 1);
+  }
+  if (!A->contains_dat(Sym<INT>("NESO_COMP_BOUNDARY_ELEMENT_TYPE"))) {
+    A->add_particle_dat(Sym<INT>("NESO_COMP_BOUNDARY_ELEMENT_TYPE"), 1);
+  }
 
   for (int cellx = 0; cellx < cell_count; cellx++) {
     auto P = A->position_dat->cell_dat.get_cell(cellx);
@@ -916,20 +931,34 @@ TEST_P(CompositeInteractionAllD, Intersection) {
           Sym<REAL>("NESO_PARTICLES_BOUNDARY_NORMAL")));
       ASSERT_TRUE(pairx.second->contains_ephemeral_dat(
           Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")));
+      ASSERT_TRUE(pairx.second->contains_ephemeral_dat(
+          Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")));
+      ASSERT_TRUE(pairx.second->contains_ephemeral_dat(
+          Sym<INT>("NESO_BOUNDARY_ELEMENT_TYPE")));
 
       particle_loop(
           pairx.second,
-          [=](auto OUTPUT_POS, auto OUTPUT_COMP, auto EPH_POS, auto EPH_COMP) {
+          [=](auto OUTPUT_POS, auto OUTPUT_COMP, auto OUTPUT_REF,
+              auto OUTPUT_ELEMENT_TYPE, auto EPH_POS, auto EPH_COMP,
+              auto EPH_REF, auto EPH_ELEMENT_TYPE) {
             for (int dx = 0; dx < ndim; dx++) {
               OUTPUT_POS.at(dx) = EPH_POS.at_ephemeral(dx);
             }
+            for (int dx = 0; dx < ndim - 1; dx++) {
+              OUTPUT_REF.at(dx) = EPH_REF.at_ephemeral(dx);
+            }
             OUTPUT_COMP.at(0) = EPH_COMP.at_ephemeral(0);
             OUTPUT_COMP.at(1) = EPH_COMP.at_ephemeral(1);
+            OUTPUT_ELEMENT_TYPE.at(0) = EPH_ELEMENT_TYPE.at_ephemeral(0);
           },
           Access::write(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS")),
           Access::write(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP")),
+          Access::write(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS")),
+          Access::write(Sym<INT>("NESO_COMP_BOUNDARY_ELEMENT_TYPE")),
           Access::read(Sym<REAL>("NESO_PARTICLES_BOUNDARY_INTERSECTION_POINT")),
-          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")))
+          Access::read(Sym<INT>("NESO_PARTICLES_BOUNDARY_METADATA")),
+          Access::read(Sym<REAL>("NESO_BOUNDARY_REFERENCE_POSITIONS")),
+          Access::read(Sym<INT>("NESO_BOUNDARY_ELEMENT_TYPE")))
           ->execute();
     }
 
@@ -938,12 +967,17 @@ TEST_P(CompositeInteractionAllD, Intersection) {
       auto P = A->get_cell(Sym<REAL>("P"), cellx);
       auto IP = A->get_cell(Sym<REAL>("NESO_COMP_INT_OUTPUT_POS"), cellx);
       auto IC = A->get_cell(Sym<INT>("NESO_COMP_INT_OUTPUT_COMP"), cellx);
+      auto IR = A->get_cell(Sym<REAL>("NESO_COMP_BOUNDARY_REFERENCE_POSITIONS"),
+                            cellx);
+      auto IE = A->get_cell(Sym<INT>("NESO_COMP_BOUNDARY_ELEMENT_TYPE"), cellx);
+
       for (int rowx = 0; rowx < P->nrow; rowx++) {
 
         auto hit_composite = IC->at(rowx, 0);
         auto geom_id = IC->at(rowx, 1);
-        auto composite_id = composite_intersection->composite_collections
-                                ->map_geom_id_to_composite_id.at(geom_id);
+        auto composite_id =
+            composite_intersection->composite_collections->composite_transport
+                ->get_composite_id(geom_id);
         ASSERT_EQ(hit_composite, expected_composite);
 
         auto geom = composite_intersection->composite_collections
@@ -979,6 +1013,22 @@ TEST_P(CompositeInteractionAllD, Intersection) {
         }
         ASSERT_TRUE(contained);
         local_count++;
+
+        local_point[0] = IR->at(rowx, 0);
+        local_point[1] = IR->at(rowx, 1);
+        local_point[2] = 0.0;
+        for (int dx = 0; dx < ndim; dx++) {
+          global_point[dx] = geom->GetCoord(dx, local_point);
+        }
+        dist = 0.0;
+        for (int dx = 0; dx < ndim; dx++) {
+          const double r = point[dx] - global_point[dx];
+          dist += r * r;
+        }
+        dist = std::sqrt(dist);
+        ASSERT_TRUE(dist < 10e-8);
+
+        ASSERT_EQ(static_cast<INT>(geom->GetShapeType()), IE->at(rowx, 0));
       }
     }
 

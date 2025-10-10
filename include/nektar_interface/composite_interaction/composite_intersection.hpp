@@ -11,6 +11,8 @@ using namespace Nektar;
 #include <nektar_interface/typedefs.hpp>
 
 #include "composite_collections.hpp"
+#include "composite_function.hpp"
+#include "composite_function_context.hpp"
 
 #include <map>
 #include <memory>
@@ -62,6 +64,14 @@ protected:
   void find_intersections_3d(std::shared_ptr<T> iteration_set, REAL *d_real,
                              INT *d_int);
 
+  // Composite function members
+  std::map<int, std::shared_ptr<UnseenValueExtractor>>
+      map_groups_unseen_value_extractor;
+
+  /// The map from boundary groups to boundary mesh interfaces.
+  std::map<int, std::shared_ptr<BoundaryMeshInterface>>
+      map_groups_boundary_interface;
+
 public:
   /// The CompositeCollections used to detect intersections.
   std::shared_ptr<CompositeCollections> composite_collections;
@@ -81,11 +91,38 @@ public:
   /// Map from boundary group id to composites in the group.
   std::map<int, std::vector<int>> boundary_groups;
 
+  /// Prototype field for boundary functions.
+  MultiRegions::DisContFieldSharedPtr prototype_field;
+
+  /// The context used to create, project and evaluate boundary functions.
+  std::shared_ptr<CompositeFunctionContext> composite_function_context;
+
   /**
    * Free the intersection object. Must be called collectively on the
    * communicator.
    */
   void free();
+
+  /**
+   *  Create a new intersection object for a compute device, mesh and vector of
+   *  composite indices.
+   *
+   *  @param sycl_target Compute device to find intersections on.
+   *  @param particle_mesh_interface Mesh interface all particle groups will be
+   *  based on.
+   *  @param boundary_groups Map from boundary group id to composite ids which
+   *  form the group.
+   *  @param prototype_field Prototype function/field to use for creating
+   * functions on boundaries.
+   *  @param config Optional configuration for intersection algorithms, e.g.
+   *  Newton iterations.
+   */
+  CompositeIntersection(
+      SYCLTargetSharedPtr sycl_target,
+      ParticleMeshInterfaceSharedPtr particle_mesh_interface,
+      std::map<int, std::vector<int>> boundary_groups,
+      MultiRegions::DisContFieldSharedPtr prototype_field,
+      ParameterStoreSharedPtr config = std::make_shared<ParameterStore>());
 
   /**
    *  Create a new intersection object for a compute device, mesh and vector of
@@ -129,6 +166,116 @@ public:
   template <typename T>
   std::map<int, ParticleSubGroupSharedPtr>
   get_intersections(std::shared_ptr<T> iteration_set);
+
+  /**
+   * Create a function on a boundary group.
+   *
+   * @param group ID of boundary group to create function on.
+   * @returns Function object on boundary.
+   */
+  CompositeFunctionSharedPtr create_function(const int group);
+
+  /**
+   * Evaluate particle data from a function defined on the surface. Uses the
+   * standardarised boundary interface on the sub group.
+   *
+   * @param particle_sub_group ParticleSubGroup to containing destination
+   * particles for evaluation.
+   * @param sym Sym<REAL> Particle property to overwrite with function
+   * evaluations.
+   * @param component Component of particle property to write evalauations to.
+   * @param is_ephemeral Indicate if the particle evaluations are in an
+   * EphemeralDat or ParticleDat.
+   * @param func Function to evaluate at particle locations.
+   */
+  void function_evaluate(ParticleSubGroupSharedPtr particle_sub_group,
+                         Sym<REAL> sym, const int component,
+                         const bool is_ephemeral,
+                         CompositeFunctionSharedPtr func);
+
+  /**
+   * Performs the initialisation of the RHS of the mass matrix solve. Collective
+   * on the communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_initialise(CompositeFunctionSharedPtr func);
+
+  /**
+   * Add particle data onto the RHS of the mass matrix solve in the projection.
+   *
+   * @param particle_sub_group ParticleSubGroup to project onto function.
+   * @param sym Sym<REAL> Particle property to use as source weights.
+   * @param component Component of particle property to use as source weights.
+   * @param is_ephemeral Indicate if the particle weights are in an EphemeralDat
+   * or ParticleDat.
+   * @param func Function to project onto.
+   */
+  void function_project_contribute(ParticleSubGroupSharedPtr particle_sub_group,
+                                   Sym<REAL> sym, const int component,
+                                   const bool is_ephemeral,
+                                   CompositeFunctionSharedPtr func);
+
+  /**
+   * Performs the reduction of the RHS of the mass matrix solve. Collective on
+   * the communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_finalise_reduce(CompositeFunctionSharedPtr func);
+
+  /**
+   * Performs the mass matrix solve of the projection. Collective on the
+   * communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_finalise_mass_solve(CompositeFunctionSharedPtr func);
+
+  /**
+   * Finalises the projection by reducing the RHS of the mass matrix solve then
+   * performing the mass-matrix solve. Equivalent to calling
+   *
+   * function_project_finalise_reduce(func);
+   * function_project_finalise_mass_solve(func);
+   *
+   * Collective on the communicator.
+   *
+   * @param func Function to project onto.
+   */
+  void function_project_finalise(CompositeFunctionSharedPtr func);
+
+  /**
+   * Project particle data onto a function defined on the surface. Uses the
+   * standardarised boundary interface on the sub group.
+   *
+   * function_project_initialise(func);
+   * function_project_contribute(particle_sub_group, sym, component,
+   *                             is_ephemeral, func);
+   * function_project_finalise(func);
+   *
+   * Must be called collectively on the communicator.
+   *
+   * @param particle_sub_group ParticleSubGroup to project onto function.
+   * @param sym Sym<REAL> Particle property to use as source weights.
+   * @param component Component of particle property to use as source weights.
+   * @param is_ephemeral Indicate if the particle weights are in an EphemeralDat
+   * or ParticleDat.
+   * @param func Function to project onto.
+   */
+  void function_project(ParticleSubGroupSharedPtr particle_sub_group,
+                        Sym<REAL> sym, const int component,
+                        const bool is_ephemeral,
+                        CompositeFunctionSharedPtr func);
+
+  /**
+   * Get the BoundaryMeshInterface instance for a boundary group.
+   *
+   * @param group Boundary group to get mesh interface for.
+   * @returns BoundaryMeshInterface for passed group.
+   */
+  std::shared_ptr<BoundaryMeshInterface>
+  get_boundary_mesh_interface(const int group);
 };
 
 extern template void

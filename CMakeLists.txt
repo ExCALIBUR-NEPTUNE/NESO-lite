@@ -105,8 +105,12 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(LIB_SRC_FILES
     ${SRC_DIR}/nektar_interface/basis_reference.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_function.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_function_context.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_function_utility.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_collections.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_intersection.cpp
+    ${SRC_DIR}/nektar_interface/composite_interaction/composite_interaction_boundary_conditions.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_utility.cpp
     ${SRC_DIR}/nektar_interface/composite_interaction/composite_transport.cpp
     ${SRC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.cpp
@@ -141,7 +145,11 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/coordinate_mapping.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_collections.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_function.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_function_context.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_function_utility.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction.hpp
+    ${INC_DIR}/nektar_interface/composite_interaction/composite_interaction_boundary_conditions.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_intersection.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_utility.hpp
     ${INC_DIR}/nektar_interface/composite_interaction/composite_transport.hpp
@@ -152,11 +160,13 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/expansion_looping/expansion_looping.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/geom_to_expansion_builder.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/hexahedron.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/loop_data.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/jacobi_coeff_mod_basis.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/jacobi_expansion_looping_interface.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/prism.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/pyramid.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/quadrilateral.hpp
+    ${INC_DIR}/nektar_interface/expansion_looping/segment.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/tetrahedron.hpp
     ${INC_DIR}/nektar_interface/expansion_looping/triangle.hpp
     ${INC_DIR}/nektar_interface/function_bary_evaluation.hpp
