@@ -27,6 +27,25 @@ void CompositeTransport::get_geometry(
   std::vector<GeometryTransport::RemoteGeom<SpatialDomains::Geometry>> geoms;
   this->mh_container->get(cell, geoms);
 
+  for (auto gx : geoms) {
+    NESOASSERT(gx.aux_int_properties.size() == 1, "Expected 1 aux property.");
+    const int geom_id = gx.id;
+    const int composite_id = gx.aux_int_properties[0];
+    const int owning_rank = gx.rank;
+    if (this->map_geom_id_to_composite_id.count(geom_id)) {
+      NESOASSERT(this->map_geom_id_to_composite_id.at(geom_id) == composite_id,
+                 "Miss-match between composite ids.");
+    } else {
+      this->map_geom_id_to_composite_id[geom_id] = composite_id;
+    }
+    if (this->map_geom_id_to_owning_rank.count(geom_id)) {
+      NESOASSERT(this->map_geom_id_to_owning_rank.at(geom_id) == owning_rank,
+                 "Miss-match between owning ranks.");
+    } else {
+      this->map_geom_id_to_owning_rank[geom_id] = owning_rank;
+    }
+  }
+
   if (geoms.size() > 0) {
     if (this->ndim == 3) {
       for (auto gx : geoms) {
@@ -153,7 +172,8 @@ CompositeTransport::CompositeTransport(
                      bounding_box_padding);
 
     GeometryTransport::RemoteGeom<SpatialDomains::Geometry> rgeom(
-        composite, geom->GetGlobalID(), geom);
+        this->rank, geom->GetGlobalID(), geom);
+    rgeom.aux_int_properties.push_back(composite);
 
     for (auto cell_overlap : cells) {
       const INT cell = cell_overlap.first;
@@ -177,6 +197,18 @@ CompositeTransport::CompositeTransport(
       std::make_shared<Particles::MeshHierarchyData::MeshHierarchyContainer<
           GeometryTransport::RemoteGeom<SpatialDomains::Geometry>>>(
           particle_mesh_interface->get_mesh_hierarchy(), cell_geom_map);
+}
+
+int CompositeTransport::get_composite_id(const int geom_id) {
+  NESOASSERT(this->map_geom_id_to_composite_id.count(geom_id),
+             "geom id not found in map for composite id");
+  return this->map_geom_id_to_composite_id.at(geom_id);
+}
+
+int CompositeTransport::get_owning_rank(const int geom_id) {
+  NESOASSERT(this->map_geom_id_to_owning_rank.count(geom_id),
+             "geom id not found in map for owning rank");
+  return this->map_geom_id_to_owning_rank.at(geom_id);
 }
 
 } // namespace NESO::CompositeInteraction

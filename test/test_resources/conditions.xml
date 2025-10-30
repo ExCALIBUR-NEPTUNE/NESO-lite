@@ -5,10 +5,9 @@
       <V ID="0"> u </V>
       <V ID="1"> v </V>
       <V ID="2"> n </V>    </VARIABLES>
-    <SOLVERINFO>
+  <SOLVERINFO>
       <I PROPERTY="Projection" VALUE="DisContinuous" />
-    </SOLVERINFO>
-  </CONDITIONS>
+  </SOLVERINFO>
 
   <GLOBALSYSSOLNINFO>
    <V VAR="u">
