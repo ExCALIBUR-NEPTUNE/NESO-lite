@@ -20,11 +20,11 @@ using Nektar::NekDouble;
 
 namespace NESO {
 
-// {name, parameters, functions, variables}
-typedef std::tuple<std::string, LU::ParameterMap, LU::FunctionMap,
-                   LU::VariableList>
+// {parameters, functions, variables, (ion for neutral)}
+typedef std::tuple<LU::ParameterMap, LU::FunctionMap, LU::VariableList,
+                   std::optional<std::string>>
     SpeciesMap;
-typedef std::map<int, SpeciesMap> SpeciesMapList;
+typedef std::map<std::string, SpeciesMap> SpeciesMapList;
 
 enum class ParticleBoundaryConditionType {
   ePeriodic,
@@ -37,16 +37,17 @@ typedef std::map<int, ParticleBoundaryConditionType>
 
 enum class ParticleSourceType { ePoint, eBulk, eSurface };
 // {number, type, (boundary), variables}
-typedef std::tuple<int, ParticleSourceType, std::optional<int>, LU::FunctionVariableMap>
+typedef std::tuple<int, ParticleSourceType, std::optional<int>,
+                   LU::FunctionVariableMap>
     ParticleSource;
 
-// {name, parameters, initial, sources, sinks, boundary}
-typedef std::tuple<
-    std::string, LU::ParameterMap, std::pair<int, LU::FunctionVariableMap>,
-    std::vector<ParticleSource>, std::vector<LU::FunctionVariableMap>,
-    ParticleSpeciesBoundaryList>
+// {parameters, initial, sources, sinks, boundary, (ion for neutral)}
+typedef std::tuple<LU::ParameterMap, std::pair<int, LU::FunctionVariableMap>,
+                   std::vector<ParticleSource>,
+                   std::vector<LU::FunctionVariableMap>,
+                   ParticleSpeciesBoundaryList, std::optional<std::string>>
     ParticleSpeciesMap;
-typedef std::map<int, ParticleSpeciesMap> ParticleSpeciesMapList;
+typedef std::map<std::string, ParticleSpeciesMap> ParticleSpeciesMapList;
 
 typedef std::tuple<std::string, std::vector<int>,
                    std::pair<std::string, NekDouble>,
@@ -89,40 +90,43 @@ public:
   bool defines_parameter(const std::string &name) const;
   /// Returns the value of the specified parameter.
   const NekDouble &get_parameter(const std::string &name) const;
-  std::vector<std::string> get_species_variables(int s) const;
-  void load_species_parameter(const int s, const std::string &name,
+  std::vector<std::string> get_species_variables(const std::string&) const;
+  void load_species_parameter(const std::string &, const std::string &name,
                               int &var) const;
 
-  void load_species_parameter(const int s, const std::string &name,
+  void load_species_parameter(const std::string &, const std::string &name,
                               NekDouble &var) const;
-  bool defines_species_function(int s, const std::string &name) const;
+  bool defines_species_function(const std::string &,
+                                const std::string &name) const;
 
-  LU::EquationSharedPtr get_species_function(int s, const std::string &name,
+  LU::EquationSharedPtr get_species_function(const std::string &,
+                                             const std::string &name,
                                              const std::string &variable,
                                              const int pDomain = 0) const;
-  enum LU::FunctionType get_species_function_type(int s,
+  enum LU::FunctionType get_species_function_type(const std::string &,
                                                   const std::string &name,
                                                   const std::string &variable,
                                                   const int pDomain = 0) const;
   /// Returns the type of a given function variable index.
-  enum LU::FunctionType get_species_function_type(int s,
+  enum LU::FunctionType get_species_function_type(const std::string &,
                                                   const std::string &pName,
                                                   const unsigned int &pVar,
                                                   const int pDomain = 0) const;
   /// Returns the filename to be loaded for a given variable.
-  std::string get_species_function_filename(int s, const std::string &name,
+  std::string get_species_function_filename(const std::string &,
+                                            const std::string &name,
                                             const std::string &variable,
                                             const int pDomain = 0) const;
   /// Returns the filename to be loaded for a given variable index.
-  std::string get_species_function_filename(int s, const std::string &name,
+  std::string get_species_function_filename(const std::string &,
+                                            const std::string &name,
                                             const unsigned int &var,
                                             const int pDomain = 0) const;
   /// Returns the filename variable to be loaded for a given variable
   /// index.
-  std::string
-  get_species_function_filename_variable(int s, const std::string &name,
-                                         const std::string &variable,
-                                         const int pDomain = 0) const;
+  std::string get_species_function_filename_variable(
+      const std::string &, const std::string &name, const std::string &variable,
+      const int pDomain = 0) const;
   void read_species_functions(TiXmlElement *specie, LU::FunctionMap &map);
 
   /// @brief  Reads initial conditions for a species
@@ -134,9 +138,8 @@ public:
   /// @brief  Reads the sources defined for a species
   /// @param particles
   /// @param sources
-  void read_particle_species_sources(
-      TiXmlElement *particles,
-      std::vector<ParticleSource> &sources);
+  void read_particle_species_sources(TiXmlElement *particles,
+                                     std::vector<ParticleSource> &sources);
 
   /// @brief  Reads the sinks defined for a species
   /// @param particles
@@ -145,10 +148,6 @@ public:
                                    std::vector<LU::FunctionVariableMap> &sinks);
   void read_particle_species_boundary(TiXmlElement *specie,
                                       ParticleSpeciesBoundaryList &boundary);
-
-  /// @brief Reads the list of species defined under particles
-  /// @param particles
-  void read_particle_species(TiXmlElement *particles);
 
   inline const ParticleSpeciesMapList &get_particle_species() const {
     return this->particle_species;
@@ -171,29 +170,30 @@ public:
   /// @param species
   /// @param name
   /// @param var
-  void load_particle_species_parameter(const int species,
+  void load_particle_species_parameter(const std::string &s,
                                        const std::string &name, int &var) const;
   /// @brief Loads a species parameter (double)
   /// @param species
   /// @param name
   /// @param var
-  void load_particle_species_parameter(const int species,
+  void load_particle_species_parameter(const std::string &s,
                                        const std::string &name,
                                        NekDouble &var) const;
 
-  int get_particle_species_initial_N(const int species) const;
+  int get_particle_species_initial_N(const std::string &s) const;
 
   /// Returns an EquationSharedPtr to a given function variable.
-  LU::FunctionVariableMap get_particle_species_initial(const int species) const;
+  LU::FunctionVariableMap
+  get_particle_species_initial(const std::string &s) const;
 
   const std::vector<ParticleSource> &
-  get_particle_species_sources(const int species) const;
+  get_particle_species_sources(const std::string &s) const;
 
   const std::vector<LU::FunctionVariableMap> &
-  get_particle_species_sinks(const int species) const;
+  get_particle_species_sinks(const std::string &s) const;
 
   const ParticleSpeciesBoundaryList &
-  get_particle_species_boundary(const int species) const;
+  get_particle_species_boundary(const std::string &s) const;
 
   /// Load an integer parameter
   void load_parameter(const std::string &name, int &var) const;
@@ -209,6 +209,7 @@ public:
   /// Check for and load a double-precision parameter.
   void load_parameter(const std::string &name, NekDouble &var,
                       const NekDouble &def) const;
+  void read_species_parameter(TiXmlElement *specie, LU::ParameterMap &map);
 
 private:
   // Nektar++ SessionReader

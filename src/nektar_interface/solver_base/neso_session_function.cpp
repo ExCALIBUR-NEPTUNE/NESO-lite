@@ -26,7 +26,7 @@ namespace NESO {
  * @param   functionName  The name of the function.
  * @param   toCache       Store the evaluated function for later use.
  */
-NESOSessionFunction::NESOSessionFunction(int s,
+NESOSessionFunction::NESOSessionFunction(const std::string &s,
                                          const NESOReaderSharedPtr &session,
                                          const MR::ExpListSharedPtr &field,
                                          std::string functionName, bool toCache)

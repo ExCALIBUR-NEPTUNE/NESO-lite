@@ -22,7 +22,7 @@ namespace NESO {
 class NESOSessionFunction {
 public:
   /// Representation of a FUNCTION defined in the session xml file.
-  NESOSessionFunction(int s, const NESOReaderSharedPtr &session,
+  NESOSessionFunction(const std::string&, const NESOReaderSharedPtr &session,
                       const MR::ExpListSharedPtr &field,
                       std::string functionName, bool toCache = false);
 
@@ -57,7 +57,7 @@ public:
 
 private:
   /// Species Index
-  int m_s;
+  std::string m_s;
   /// The session reader
   NESOReaderSharedPtr m_session;
   /// The expansion we want to evaluate this function for

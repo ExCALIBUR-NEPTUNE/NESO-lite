@@ -58,10 +58,10 @@ MapParticles2D::MapParticles2D(
 
 void MapParticles2D::map(ParticleGroup &particle_group, const int map_cell) {
 
-  if (this->count_regular > 0) {
+  //if (this->count_regular > 0) {
     // attempt to bin particles into regular geometry objects
     this->map_particles_2d_regular->map(particle_group, map_cell);
-  }
+  //}
 
   bool particles_not_mapped = true;
   if (this->count_deformed > 0) {

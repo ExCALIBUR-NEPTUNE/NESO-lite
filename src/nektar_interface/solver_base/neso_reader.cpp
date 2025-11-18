@@ -74,73 +74,47 @@ void NESOReader::read_species() {
                 .FirstChildElement("SPECIES")
                 .Element();
   if (species) {
-    TiXmlElement *specie = species->FirstChildElement("S");
+    TiXmlElement *specie = species->FirstChildElement();
 
     while (specie) {
       std::stringstream tagcontent;
       tagcontent << *specie;
-      std::string id = specie->Attribute("ID");
-      NESOASSERT(!id.empty(), "Missing ID attribute in Species XML "
-                              "element: \n\t'" +
-                                  tagcontent.str() + "'");
 
       std::string name = specie->Attribute("NAME");
       NESOASSERT(!name.empty(),
                  "NAME attribute must be non-empty in XML element:\n\t'" +
                      tagcontent.str() + "'");
-      SpeciesMap species_map;
-      std::get<0>(species_map) = name;
 
-      TiXmlElement *parameter = specie->FirstChildElement("P");
+      std::string species_type = specie->Value();
+      if (species_type == "I" || species_type == "N") {
+        SpeciesMap species_map;
 
-      // Multiple nodes will only occur if there is a comment in
-      // between definitions.
-      while (parameter) {
-        std::stringstream tagcontent;
-        tagcontent << *parameter;
-        TiXmlNode *node = parameter->FirstChild();
+        read_species_parameter(specie, std::get<0>(species_map));
+        read_species_functions(specie, std::get<1>(species_map));
+        std::string fields = specie->Attribute("FIELDS");
+        boost::split(std::get<2>(species_map), fields, boost::is_any_of(","));
+        if (species_type == "N") {
+          std::get<3>(species_map) = specie->Attribute("ION");
+        }
+        this->species[name] = species_map;
+      } else if (species_type == "KI" || species_type == "KN") {
+        ParticleSpeciesMap species_map;
 
-        while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
-          node = node->NextSibling();
+        read_species_parameter(specie, std::get<0>(species_map));
+        read_particle_species_initial(specie, std::get<1>(species_map));
+        read_particle_species_sources(specie, std::get<2>(species_map));
+        read_particle_species_sinks(specie, std::get<3>(species_map));
+        read_particle_species_boundary(specie, std::get<4>(species_map));
+        if (species_type == "N") {
+          std::get<5>(species_map) = specie->Attribute("ION");
         }
 
-        if (node) {
-          // Format is "paramName = value"
-          std::string line = node->ToText()->Value(), lhs, rhs;
-
-          try {
-            parse_equals(line, lhs, rhs);
-          } catch (...) {
-            NESOASSERT(false, "Syntax error in parameter expression '" + line +
-                                  "' in XML element: \n\t'" + tagcontent.str() +
-                                  "'");
-          }
-
-          // We want the list of parameters to have their RHS
-          // evaluated, so we use the expression evaluator to do
-          // the dirty work.
-          if (!lhs.empty() && !rhs.empty()) {
-            NekDouble value = 0.0;
-            try {
-              LU::Equation expession(this->interpreter, rhs);
-              value = expession.Evaluate();
-            } catch (const std::runtime_error &) {
-              NESOASSERT(false, "Error evaluating parameter expression"
-                                " '" +
-                                    rhs + "' in XML element: \n\t'" +
-                                    tagcontent.str() + "'");
-            }
-            this->interpreter->SetParameter(lhs, value);
-            boost::to_upper(lhs);
-            std::get<1>(species_map)[lhs] = value;
-          }
-        }
-        parameter = parameter->NextSiblingElement();
+        this->particle_species[name] = species_map;
+      } else {
+        NESOASSERT(false, "Unrecognised species type in <SPECIES> tag.  "
+                          "Allowed types are I, N, KI, KN");
       }
-      read_species_functions(specie, std::get<2>(species_map));
-      specie = specie->NextSiblingElement("S");
-
-      this->species[std::stoi(id)] = species_map;
+      specie = specie->NextSiblingElement();
     }
   }
 }
@@ -311,10 +285,11 @@ const NekDouble &NESOReader::get_parameter(const std::string &name) const {
   return param_iter->second;
 }
 
-void NESOReader::load_species_parameter(const int s, const std::string &name,
+void NESOReader::load_species_parameter(const std::string &s,
+                                        const std::string &name,
                                         int &var) const {
   std::string name_upper = boost::to_upper_copy(name);
-  auto map = std::get<1>(this->species.at(s));
+  auto map = std::get<0>(this->species.at(s));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
              "Required parameter '" + name + "' not specified in session.");
@@ -322,30 +297,35 @@ void NESOReader::load_species_parameter(const int s, const std::string &name,
   var = LU::checked_cast<int>(param);
 }
 
-void NESOReader::load_species_parameter(const int s, const std::string &name,
+void NESOReader::load_species_parameter(const std::string &s,
+                                        const std::string &name,
                                         NekDouble &var) const {
   std::string name_upper = boost::to_upper_copy(name);
-  auto map = std::get<1>(this->species.at(s));
+  auto map = std::get<0>(this->species.at(s));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
              "Required parameter '" + name + "' not specified in session.");
   var = param_iter->second;
 }
 
-std::vector<std::string> NESOReader::get_species_variables(int s) const {}
-bool NESOReader::defines_species_function(int s,
+std::vector<std::string>
+NESOReader::get_species_variables(const std::string &s) const {
+  return std::get<2>(this->species.at(s));
+}
+
+bool NESOReader::defines_species_function(const std::string &s,
                                           const std::string &name) const {
-  auto functions = std::get<2>(this->species.at(s));
+  auto functions = std::get<1>(this->species.at(s));
   std::string vName = boost::to_upper_copy(name);
   return functions.find(vName) != functions.end();
 }
 
 LU::EquationSharedPtr
-NESOReader::get_species_function(int s, const std::string &name,
+NESOReader::get_species_function(const std::string &s, const std::string &name,
                                  const std::string &variable,
                                  const int pDomain) const {
   std::string vName = boost::to_upper_copy(name);
-  auto functions = std::get<2>(this->species.at(s));
+  auto functions = std::get<1>(this->species.at(s));
   auto it1 = functions.find(vName);
 
   ASSERTL0(it1 != functions.end(),
@@ -377,12 +357,11 @@ NESOReader::get_species_function(int s, const std::string &name,
   return it2->second.m_expression;
 }
 
-enum LU::FunctionType
-NESOReader::get_species_function_type(int s, const std::string &name,
-                                      const std::string &variable,
-                                      const int pDomain) const {
+enum LU::FunctionType NESOReader::get_species_function_type(
+    const std::string &s, const std::string &name, const std::string &variable,
+    const int pDomain) const {
   std::string vName = boost::to_upper_copy(name);
-  auto functions = std::get<2>(this->species.at(s));
+  auto functions = std::get<1>(this->species.at(s));
   auto it1 = functions.find(vName);
 
   ASSERTL0(it1 != functions.end(),
@@ -412,12 +391,11 @@ NESOReader::get_species_function_type(int s, const std::string &name,
 }
 
 /// Returns the filename to be loaded for a given variable.
-std::string
-NESOReader::get_species_function_filename(int s, const std::string &name,
-                                          const std::string &variable,
-                                          const int pDomain) const {
+std::string NESOReader::get_species_function_filename(
+    const std::string &s, const std::string &name, const std::string &variable,
+    const int pDomain) const {
   std::string vName = boost::to_upper_copy(name);
-  auto functions = std::get<2>(this->species.at(s));
+  auto functions = std::get<1>(this->species.at(s));
   auto it1 = functions.find(vName);
 
   ASSERTL0(it1 != functions.end(),
@@ -447,10 +425,10 @@ NESOReader::get_species_function_filename(int s, const std::string &name,
 }
 
 std::string NESOReader::get_species_function_filename_variable(
-    int s, const std::string &name, const std::string &variable,
+    const std::string &s, const std::string &name, const std::string &variable,
     const int pDomain) const {
   std::string vName = boost::to_upper_copy(name);
-  auto functions = std::get<2>(this->species.at(s));
+  auto functions = std::get<1>(this->species.at(s));
 
   auto it1 = functions.find(vName);
 
@@ -1232,85 +1210,58 @@ void NESOReader::read_particle_species_boundary(
   }
 }
 
-void NESOReader::read_particle_species(TiXmlElement *particles) {
-  TiXmlElement *species = particles->FirstChildElement("SPECIES");
-  if (species) {
-    TiXmlElement *specie = species->FirstChildElement("S");
+void NESOReader::read_species_parameter(TiXmlElement *specie,
+                                        LU::ParameterMap &map) {
+  TiXmlElement *parameter = specie->FirstChildElement("P");
 
-    while (specie) {
-      std::stringstream tagcontent;
-      tagcontent << *specie;
-      std::string id = specie->Attribute("ID");
-      NESOASSERT(!id.empty(), "Missing ID attribute in Species XML "
-                              "element: \n\t'" +
-                                  tagcontent.str() + "'");
+  // Multiple nodes will only occur if there is a comment in
+  // between definitions.
+  while (parameter) {
+    std::stringstream tagcontent;
+    tagcontent << *parameter;
+    TiXmlNode *node = parameter->FirstChild();
 
-      std::string name = specie->Attribute("NAME");
-      NESOASSERT(!name.empty(),
-                 "NAME attribute must be non-empty in XML element:\n\t'" +
-                     tagcontent.str() + "'");
-      ParticleSpeciesMap species_map;
-      std::get<0>(species_map) = name;
-
-      TiXmlElement *parameter = specie->FirstChildElement("P");
-
-      // Multiple nodes will only occur if there is a comment in
-      // between definitions.
-      while (parameter) {
-        std::stringstream tagcontent;
-        tagcontent << *parameter;
-        TiXmlNode *node = parameter->FirstChild();
-
-        while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
-          node = node->NextSibling();
-        }
-
-        if (node) {
-          // Format is "paramName = value"
-          std::string line = node->ToText()->Value(), lhs, rhs;
-
-          try {
-            parse_equals(line, lhs, rhs);
-          } catch (...) {
-            NESOASSERT(false, "Syntax error in parameter expression '" + line +
-                                  "' in XML element: \n\t'" + tagcontent.str() +
-                                  "'");
-          }
-
-          // We want the list of parameters to have their RHS
-          // evaluated, so we use the expression evaluator to do
-          // the dirty work.
-          if (!lhs.empty() && !rhs.empty()) {
-            NekDouble value = 0.0;
-            try {
-              LU::Equation expession(this->interpreter, rhs);
-              value = expession.Evaluate();
-            } catch (const std::runtime_error &) {
-              NESOASSERT(false, "Error evaluating parameter expression"
-                                " '" +
-                                    rhs + "' in XML element: \n\t'" +
-                                    tagcontent.str() + "'");
-            }
-            this->interpreter->SetParameter(lhs, value);
-            boost::to_upper(lhs);
-            std::get<1>(species_map)[lhs] = value;
-          }
-        }
-        parameter = parameter->NextSiblingElement();
-      }
-      read_particle_species_initial(specie, std::get<2>(species_map));
-      read_particle_species_sources(specie, std::get<3>(species_map));
-      read_particle_species_sinks(specie, std::get<4>(species_map));
-      read_particle_species_boundary(specie, std::get<5>(species_map));
-      specie = specie->NextSiblingElement("S");
-
-      this->particle_species[std::stoi(id)] = species_map;
+    while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
+      node = node->NextSibling();
     }
+
+    if (node) {
+      // Format is "paramName = value"
+      std::string line = node->ToText()->Value(), lhs, rhs;
+
+      try {
+        parse_equals(line, lhs, rhs);
+      } catch (...) {
+        NESOASSERT(false, "Syntax error in parameter expression '" + line +
+                              "' in XML element: \n\t'" + tagcontent.str() +
+                              "'");
+      }
+
+      // We want the list of parameters to have their RHS
+      // evaluated, so we use the expression evaluator to do
+      // the dirty work.
+      if (!lhs.empty() && !rhs.empty()) {
+        NekDouble value = 0.0;
+        try {
+          LU::Equation expession(this->interpreter, rhs);
+          value = expession.Evaluate();
+        } catch (const std::runtime_error &) {
+          NESOASSERT(false, "Error evaluating parameter expression"
+                            " '" +
+                                rhs + "' in XML element: \n\t'" +
+                                tagcontent.str() + "'");
+        }
+        this->interpreter->SetParameter(lhs, value);
+        boost::to_upper(lhs);
+        map[lhs] = value;
+      }
+    }
+    parameter = parameter->NextSiblingElement();
   }
 }
 
-void NESOReader::read_reactions(TiXmlElement *particles) {
-  TiXmlElement *reactions_element = particles->FirstChildElement("REACTIONS");
+void NESOReader::read_reactions(TiXmlElement *neso) {
+  TiXmlElement *reactions_element = neso->FirstChildElement("VANTAGE");
   if (reactions_element) {
     TiXmlElement *reaction_r = reactions_element->FirstChildElement("R");
 
@@ -1332,7 +1283,8 @@ void NESOReader::read_reactions(TiXmlElement *particles) {
       boost::split(species_list, species, boost::is_any_of(","));
 
       for (const auto &s : species_list) {
-        NESOASSERT(this->species.find(std::stoi(s)) != this->species.end(),
+        NESOASSERT(this->particle_species.find(s) !=
+                       this->particle_species.end(),
                    "Species '" + s +
                        "' not found.  Ensure it is specified under the "
                        "<SPECIES> tag");
@@ -1357,8 +1309,8 @@ void NESOReader::read_reactions(TiXmlElement *particles) {
   }
 }
 
-void NESOReader::read_surface_reactions(TiXmlElement *particles) {
-  TiXmlElement *reactions_element = particles->FirstChildElement("REACTIONS");
+void NESOReader::read_surface_reactions(TiXmlElement *neso) {
+  TiXmlElement *reactions_element = neso->FirstChildElement("VANTAGE");
   if (reactions_element) {
     TiXmlElement *reaction_r = reactions_element->FirstChildElement("S");
 
@@ -1380,7 +1332,8 @@ void NESOReader::read_surface_reactions(TiXmlElement *particles) {
       boost::split(species_list, species, boost::is_any_of(","));
 
       for (const auto &s : species_list) {
-        NESOASSERT(this->species.find(std::stoi(s)) != this->species.end(),
+        NESOASSERT(this->particle_species.find(s) !=
+                       this->particle_species.end(),
                    "Species '" + s +
                        "' not found.  Ensure it is specified under the "
                        "<SPECIES> tag");
@@ -1415,6 +1368,11 @@ void NESOReader::read_particles() {
   NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
 
   TiXmlHandle docHandle(&this->session->GetDocument());
+  TiXmlElement *neso;
+
+  // Look for all data in PARTICLES block.
+  neso =
+      docHandle.FirstChildElement("NEKTAR").FirstChildElement("NESO").Element();
   TiXmlElement *particles;
 
   // Look for all data in PARTICLES block.
@@ -1427,16 +1385,15 @@ void NESOReader::read_particles() {
     return;
   }
   read_parameters(particles);
-  read_particle_species(particles);
-  read_reactions(particles);
-  read_surface_reactions(particles);
+  read_reactions(neso);
+  read_surface_reactions(neso);
 }
 
-void NESOReader::load_particle_species_parameter(const int s,
+void NESOReader::load_particle_species_parameter(const std::string &s,
                                                  const std::string &name,
                                                  int &var) const {
   std::string name_upper = boost::to_upper_copy(name);
-  auto map = std::get<1>(this->particle_species.at(s));
+  auto map = std::get<0>(this->particle_species.at(s));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
              "Required parameter '" + name + "' not specified in session.");
@@ -1444,41 +1401,41 @@ void NESOReader::load_particle_species_parameter(const int s,
   var = LU::checked_cast<int>(param);
 }
 
-void NESOReader::load_particle_species_parameter(const int s,
+void NESOReader::load_particle_species_parameter(const std::string &s,
                                                  const std::string &name,
                                                  NekDouble &var) const {
   std::string name_upper = boost::to_upper_copy(name);
-  auto map = std::get<1>(this->particle_species.at(s));
+  auto map = std::get<0>(this->particle_species.at(s));
   auto param_iter = map.find(name_upper);
   NESOASSERT(param_iter != map.end(),
              "Required parameter '" + name + "' not specified in session.");
   var = param_iter->second;
 }
 
-int NESOReader::get_particle_species_initial_N(const int s) const {
-  return std::get<2>(this->particle_species.at(s)).first;
+int NESOReader::get_particle_species_initial_N(const std::string &s) const {
+  return std::get<1>(this->particle_species.at(s)).first;
 }
 /**
  *
  */
 LU::FunctionVariableMap
-NESOReader::get_particle_species_initial(const int s) const {
-  return std::get<2>(this->particle_species.at(s)).second;
+NESOReader::get_particle_species_initial(const std::string &s) const {
+  return std::get<1>(this->particle_species.at(s)).second;
 }
 
 const std::vector<ParticleSource> &
-NESOReader::get_particle_species_sources(const int s) const {
-  return std::get<3>(this->particle_species.at(s));
+NESOReader::get_particle_species_sources(const std::string &s) const {
+  return std::get<2>(this->particle_species.at(s));
 }
 
 const std::vector<LU::FunctionVariableMap> &
-NESOReader::get_particle_species_sinks(const int s) const {
-  return std::get<4>(this->particle_species.at(s));
+NESOReader::get_particle_species_sinks(const std::string &s) const {
+  return std::get<3>(this->particle_species.at(s));
 }
 
 const ParticleSpeciesBoundaryList &
-NESOReader::get_particle_species_boundary(const int s) const {
-  return std::get<5>(this->particle_species.at(s));
+NESOReader::get_particle_species_boundary(const std::string &s) const {
+  return std::get<4>(this->particle_species.at(s));
 }
 
 /**

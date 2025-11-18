@@ -21,7 +21,9 @@ MapParticles2DRegular::MapParticles2DRegular(
         geoms_local_tmp;
     get_all_elements_2d(particle_mesh_interface->graph, geoms_local_tmp);
     for (auto &geom : geoms_local_tmp) {
-      if (geom.second->GetMetricInfo()->GetGtype() == eRegular) {
+      if (geom.second->GetMetricInfo()->GetGtype() == eRegular ||
+          (geom.second->GetMetricInfo()->GetGtype() == eDeformed &&
+           geom.second->GetShapeType() == eTriangle)) {
         geoms_local[geom.first] = geom.second;
       }
     }
@@ -38,7 +40,9 @@ MapParticles2DRegular::MapParticles2DRegular(
                             geoms_remote_tmp);
     geoms_remote.reserve(geoms_remote_tmp.size());
     for (auto &geom : geoms_remote_tmp) {
-      if (geom->geom->GetMetricInfo()->GetGtype() == eRegular) {
+      if (geom->geom->GetMetricInfo()->GetGtype() == eRegular ||
+          (geom->geom->GetMetricInfo()->GetGtype() == eDeformed &&
+           geom->geom->GetShapeType() == eTriangle)) {
         geoms_remote.push_back(geom);
       }
     }
