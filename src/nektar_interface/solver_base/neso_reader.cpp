@@ -72,7 +72,7 @@ void NESOReader::read_boundary_regions() {
   TiXmlHandle docHandle(&this->session->GetDocument());
   TiXmlElement *conditions;
 
-  // Look for all data in PARTICLES block.
+  // Look for all data in BOUNDARYREGIONS block.
   conditions = docHandle.FirstChildElement("NEKTAR")
                    .FirstChildElement("CONDITIONS")
                    .Element();
@@ -145,7 +145,7 @@ void NESOReader::read_species() {
   TiXmlHandle docHandle(&this->session->GetDocument());
   TiXmlElement *species;
 
-  // Look for all data in PARTICLES block.
+  // Look for all data in SPECIES block.
   species = docHandle.FirstChildElement("NEKTAR")
                 .FirstChildElement("NESO")
                 .FirstChildElement("SPECIES")
@@ -194,172 +194,6 @@ void NESOReader::read_species() {
       specie = specie->NextSiblingElement();
     }
   }
-}
-
-void NESOReader::read_info() {
-  NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
-
-  TiXmlHandle docHandle(&this->session->GetDocument());
-  TiXmlElement *particles;
-
-  // Look for all data in PARTICLES block.
-  particles = docHandle.FirstChildElement("NEKTAR")
-                  .FirstChildElement("NESO")
-                  .FirstChildElement("PARTICLES")
-                  .Element();
-  if (!particles) {
-    return;
-  }
-  this->particle_info.clear();
-
-  TiXmlElement *particle_info_element = particles->FirstChildElement("INFO");
-
-  if (particle_info_element) {
-    TiXmlElement *particle_info_i =
-        particle_info_element->FirstChildElement("I");
-
-    while (particle_info_i) {
-      std::stringstream tagcontent;
-      tagcontent << *particle_info_i;
-      // read the property name
-      NESOASSERT(particle_info_i->Attribute("PROPERTY"),
-                 "Missing PROPERTY attribute in particle info "
-                 "XML element: \n\t'" +
-                     tagcontent.str() + "'");
-      std::string particle_property = particle_info_i->Attribute("PROPERTY");
-      NESOASSERT(!particle_property.empty(),
-                 "PROPERTY attribute must be non-empty in XML "
-                 "element: \n\t'" +
-                     tagcontent.str() + "'");
-
-      // make sure that solver property is capitalised
-      std::string particle_property_upper =
-          boost::to_upper_copy(particle_property);
-
-      // read the value
-      NESOASSERT(particle_info_i->Attribute("VALUE"),
-                 "Missing VALUE attribute in particle info "
-                 "XML element: \n\t'" +
-                     tagcontent.str() + "'");
-      std::string particle_value = particle_info_i->Attribute("VALUE");
-      NESOASSERT(!particle_value.empty(),
-                 "VALUE attribute must be non-empty in XML "
-                 "element: \n\t'" +
-                     tagcontent.str() + "'");
-
-      // Set Variable
-      this->particle_info[particle_property_upper] = particle_value;
-      particle_info_i = particle_info_i->NextSiblingElement("I");
-    }
-  }
-}
-
-/**
- *
- */
-bool NESOReader::defines_info(const std::string &name) const {
-  std::string name_upper = boost::to_upper_copy(name);
-  return this->particle_info.find(name_upper) != this->particle_info.end();
-}
-/**
- * If the parameter is not defined, termination occurs. Therefore, the
- * parameters existence should be tested for using #DefinesParameter
- * before calling this function.
- *
- * @param   name       The name of a floating-point parameter.
- * @returns The value of the floating-point parameter.
- */
-const std::string &NESOReader::get_info(const std::string &name) const {
-  std::string name_upper = boost::to_upper_copy(name);
-  auto info_iter = this->particle_info.find(name);
-
-  NESOASSERT(info_iter != this->particle_info.end(),
-             "Unable to find requested info: " + name);
-
-  return info_iter->second;
-}
-
-void NESOReader::read_parameters(TiXmlElement *particles) {
-  this->parameters.clear();
-
-  TiXmlElement *parameters = particles->FirstChildElement("PARAMETERS");
-
-  // See if we have parameters defined.  They are optional so we go on
-  // if not.
-  if (parameters) {
-    TiXmlElement *parameter_p = parameters->FirstChildElement("P");
-
-    // Multiple nodes will only occur if there is a comment in
-    // between definitions.
-    while (parameter_p) {
-      std::stringstream tagcontent;
-      tagcontent << *parameter_p;
-      TiXmlNode *node = parameter_p->FirstChild();
-
-      while (node && node->Type() != TiXmlNode::TINYXML_TEXT) {
-        node = node->NextSibling();
-      }
-
-      if (node) {
-        // Format is "paramName = value"
-        std::string line = node->ToText()->Value(), lhs, rhs;
-
-        try {
-          parse_equals(line, lhs, rhs);
-        } catch (...) {
-          NESOASSERT(false, "Syntax error in parameter expression '" + line +
-                                "' in XML element: \n\t'" + tagcontent.str() +
-                                "'");
-        }
-
-        // We want the list of parameters to have their RHS
-        // evaluated, so we use the expression evaluator to do
-        // the dirty work.
-        if (!lhs.empty() && !rhs.empty()) {
-          NekDouble value = 0.0;
-          try {
-            LU::Equation expession(this->interpreter, rhs);
-            value = expession.Evaluate();
-          } catch (const std::runtime_error &) {
-            NESOASSERT(false, "Error evaluating parameter expression"
-                              " '" +
-                                  rhs + "' in XML element: \n\t'" +
-                                  tagcontent.str() + "'");
-          }
-          this->interpreter->SetParameter(lhs, value);
-          boost::to_upper(lhs);
-          this->parameters[lhs] = value;
-        }
-      }
-      parameter_p = parameter_p->NextSiblingElement();
-    }
-  }
-}
-
-/**
- *
- */
-bool NESOReader::defines_parameter(const std::string &name) const {
-  std::string name_upper = boost::to_upper_copy(name);
-  return this->parameters.find(name_upper) != this->parameters.end();
-}
-
-/**
- * If the parameter is not defined, termination occurs. Therefore, the
- * parameters existence should be tested for using #DefinesParameter
- * before calling this function.
- *
- * @param   name       The name of a floating-point parameter.
- * @returns The value of the floating-point parameter.
- */
-const NekDouble &NESOReader::get_parameter(const std::string &name) const {
-  std::string name_upper = boost::to_upper_copy(name);
-  auto param_iter = this->parameters.find(name_upper);
-
-  NESOASSERT(param_iter != this->parameters.end(),
-             "Unable to find requested parameter: " + name);
-
-  return param_iter->second;
 }
 
 void NESOReader::load_species_parameter(const std::string &s,
@@ -1438,7 +1272,7 @@ void NESOReader::read_vantage() {
 
   TiXmlHandle docHandle(&this->session->GetDocument());
 
-  // Look for all data in PARTICLES block.
+  // Look for all data in VANTAGE block.
   TiXmlElement *vantage = docHandle.FirstChildElement("NEKTAR")
                               .FirstChildElement("NESO")
                               .FirstChildElement("VANTAGE")
