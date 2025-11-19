@@ -83,20 +83,6 @@ public:
   /// @brief Reads the VANTAGE tag from xml document
   void read_vantage();
 
-  /// @brief Reads info related to particles
-  void read_info();
-  /// Checks if info is specified in the XML document.
-  bool defines_info(const std::string &name) const;
-  /// Returns the value of the particle info.
-  const std::string &get_info(const std::string &name) const;
-
-  /// @brief  Reads parameters related to particles
-  /// @param particles
-  void read_parameters(TiXmlElement *particles);
-  /// Checks if a parameter is specified in the XML document.
-  bool defines_parameter(const std::string &name) const;
-  /// Returns the value of the specified parameter.
-  const NekDouble &get_parameter(const std::string &name) const;
   std::vector<std::string> get_species_variables(const std::string &) const;
   void load_species_parameter(const std::string &, const std::string &name,
                               int &var) const;
