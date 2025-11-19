@@ -49,15 +49,18 @@ typedef std::tuple<LU::ParameterMap, std::pair<int, LU::FunctionVariableMap>,
     ParticleSpeciesMap;
 typedef std::map<std::string, ParticleSpeciesMap> ParticleSpeciesMapList;
 
-typedef std::tuple<std::string, std::vector<int>,
+// {name, species names, rates, cross-sections}
+typedef std::tuple<std::string, std::vector<std::string>,
                    std::pair<std::string, NekDouble>,
                    std::pair<std::string, NekDouble>>
     ReactionMap;
-typedef std::map<int, ReactionMap> ReactionMapList;
-typedef std::tuple<std::string, std::vector<int>, std::vector<int>,
+typedef std::vector<ReactionMap> ReactionMapList;
+
+// {name, species names, boundary ids, rates}
+typedef std::tuple<std::string, std::vector<std::string>, std::vector<int>,
                    std::pair<std::string, NekDouble>>
     SurfaceReactionMap;
-typedef std::map<int, SurfaceReactionMap> SurfaceReactionMapList;
+typedef std::vector<SurfaceReactionMap> SurfaceReactionMapList;
 
 class NESOReader;
 typedef std::shared_ptr<NESOReader> NESOReaderSharedPtr;
@@ -73,8 +76,12 @@ public:
 
   inline const SpeciesMapList &get_species() const { return this->species; }
 
-  /// @brief Reads the particle tag from xml document
-  void read_particles();
+  void read_boundary_regions();
+
+  std::map<int, std::vector<int>>& get_boundary_regions();
+
+  /// @brief Reads the VANTAGE tag from xml document
+  void read_vantage();
 
   /// @brief Reads info related to particles
   void read_info();
@@ -90,7 +97,7 @@ public:
   bool defines_parameter(const std::string &name) const;
   /// Returns the value of the specified parameter.
   const NekDouble &get_parameter(const std::string &name) const;
-  std::vector<std::string> get_species_variables(const std::string&) const;
+  std::vector<std::string> get_species_variables(const std::string &) const;
   void load_species_parameter(const std::string &, const std::string &name,
                               int &var) const;
 
@@ -129,22 +136,11 @@ public:
       const int pDomain = 0) const;
   void read_species_functions(TiXmlElement *specie, LU::FunctionMap &map);
 
-  /// @brief  Reads initial conditions for a species
-  /// @param particles
-  /// @param initial
   void read_particle_species_initial(
-      TiXmlElement *particles,
-      std::pair<int, LU::FunctionVariableMap> &initial);
-  /// @brief  Reads the sources defined for a species
-  /// @param particles
-  /// @param sources
-  void read_particle_species_sources(TiXmlElement *particles,
+      TiXmlElement *specie, std::pair<int, LU::FunctionVariableMap> &initial);
+  void read_particle_species_sources(TiXmlElement *specie,
                                      std::vector<ParticleSource> &sources);
-
-  /// @brief  Reads the sinks defined for a species
-  /// @param particles
-  /// @param sinks
-  void read_particle_species_sinks(TiXmlElement *particles,
+  void read_particle_species_sinks(TiXmlElement *specie,
                                    std::vector<LU::FunctionVariableMap> &sinks);
   void read_particle_species_boundary(TiXmlElement *specie,
                                       ParticleSpeciesBoundaryList &boundary);
@@ -153,16 +149,11 @@ public:
     return this->particle_species;
   }
 
-  /// @brief Reads reactions
-  /// @param particles
-  void read_reactions(TiXmlElement *particles);
+  void read_reactions(TiXmlElement *vantage);
   inline const ReactionMapList &get_reactions() const {
     return this->reactions;
   }
-
-  /// @brief Reads surface reactions
-  /// @param particles
-  void read_surface_reactions(TiXmlElement *particles);
+  void read_surface_reactions(TiXmlElement *vantage);
   inline const SurfaceReactionMapList &get_surface_reactions() const {
     return this->surface_reactions;
   }
@@ -230,6 +221,8 @@ private:
   // Reactions
   ReactionMapList reactions;
   SurfaceReactionMapList surface_reactions;
+
+  std::map<int, std::vector<int>> boundary_groups;
 
   void parse_equals(const std::string &line, std::string &lhs,
                     std::string &rhs);

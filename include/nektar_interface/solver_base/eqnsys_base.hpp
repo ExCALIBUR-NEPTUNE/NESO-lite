@@ -39,45 +39,38 @@ protected:
              const SD::MeshGraphSharedPtr &graph)
       : NEKEQNSYS(session, graph), field_to_index(session->GetVariables()),
         required_fld_names() {
-
-    /*
-    Particle system type is defined in the same xml document as the Nektar++
-    settings
-    <NESO>
-      <PARTICLES>
-        <INFO>
-          <I PROPERTY="PARTTYPE" VALUE="MyParticleSystem"/>
-        </INFO>
-      </PARTICLES>
-    </NESO>
-    */
     this->particles_enabled = false;
     this->neso_config = std::make_shared<NESOReader>(session);
     if (session->DefinesElement("Nektar/Neso/Species")) {
       this->neso_config->read_species();
     }
-    if (session->DefinesElement("Nektar/Neso/Particles")) {
-      this->neso_config->read_info();
-      if (this->neso_config->defines_info("PARTTYPE")) {
-        std::string part_sys_name = this->neso_config->get_info("PARTTYPE");
-        NESOASSERT(GetParticleSystemFactory().ModuleExists(part_sys_name),
-                   "ParticleSystem '" + part_sys_name +
-                       "' is not defined.\n"
-                       "Ensure particle system name is correct and module is "
-                       "compiled.\n");
-        // The PartSysBase ptr returned from the factory is cast back to the
-        // solver-specific PARTSYS type to allow the eqn_sys to use
-        // solver-specific polymorphism
-        this->particle_sys = std::static_pointer_cast<PARTSYS>(
-            GetParticleSystemFactory().CreateInstance(part_sys_name,
-                                                      neso_config, graph));
-        this->particles_enabled = true;
-        this->particle_sys->init_object();
-      } else {
-        NESOASSERT(
-            false,
-            "PARTICLES element present in xml but PARTTYPE not specified.");
-      }
+    if (session->DefinesElement("Nektar/Neso/VANTAGE")) {
+      this->neso_config->read_vantage();
+    }
+    if (session->DefinesSolverInfo("PARTTYPE")) {
+      NESOASSERT(this->neso_config->get_particle_species().size(),
+                 "ParticleSystem specified in <INFO> but no kinetic species "
+                 "found in <SPECIES>");
+
+      std::string part_sys_name = session->GetSolverInfo("PARTTYPE");
+      NESOASSERT(GetParticleSystemFactory().ModuleExists(part_sys_name),
+                 "ParticleSystem '" + part_sys_name +
+                     "' is not defined.\n"
+                     "Ensure particle system name is correct and module is "
+                     "compiled.\n");
+      // The PartSysBase ptr returned from the factory is cast back to the
+      // solver-specific PARTSYS type to allow the eqn_sys to use
+      // solver-specific polymorphism
+      this->particle_sys = std::static_pointer_cast<PARTSYS>(
+          GetParticleSystemFactory().CreateInstance(part_sys_name, neso_config,
+                                                    graph));
+      this->particles_enabled = true;
+      this->particle_sys->init_object();
+    } else if (this->neso_config->get_particle_species().size()) {
+      NESOASSERT(
+          false,
+          "Kinetic species "
+          "found in <SPECIES> but no ParticleSystem specified in <INFO>");
     }
   }
 
@@ -100,10 +93,10 @@ protected:
   std::vector<std::string> required_fld_names;
 
   /// Placeholder for subclasses to override; called in v_InitObject()
-  virtual void load_params(){};
+  virtual void load_params() {};
 
   /// Hook to allow subclasses to run post-solve tasks at the end of v_DoSolve()
-  virtual void post_solve(){};
+  virtual void post_solve() {};
 
   /**
    * @brief Assert that a named variable/field is at a particular index in the

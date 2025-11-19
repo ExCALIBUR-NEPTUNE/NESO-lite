@@ -62,6 +62,83 @@ void NESOReader::parse_equals(const std::string &line, std::string &lhs,
   rhs = rhs.substr(0, rhs.find_last_not_of(" ") + 1);
 }
 
+void NESOReader::read_boundary_regions() {
+  // ensure boundary regions only read once per class definition
+  if (this->boundary_groups.size() != 0) {
+    return;
+  }
+  NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
+
+  TiXmlHandle docHandle(&this->session->GetDocument());
+  TiXmlElement *conditions;
+
+  // Look for all data in PARTICLES block.
+  conditions = docHandle.FirstChildElement("NEKTAR")
+                   .FirstChildElement("CONDITIONS")
+                   .Element();
+
+  TiXmlElement *boundaryRegions =
+      conditions->FirstChildElement("BOUNDARYREGIONS");
+
+  ASSERTL0(boundaryRegions, "Unable to find BOUNDARYREGIONS block.");
+
+  // See if we have boundary regions defined.
+  TiXmlElement *boundaryRegionsElement =
+      boundaryRegions->FirstChildElement("B");
+
+  while (boundaryRegionsElement) {
+    /// All elements are of the form: "<B ID="#"> ... </B>", with
+    /// ? being the element type.
+    int indx;
+    int err = boundaryRegionsElement->QueryIntAttribute("ID", &indx);
+    ASSERTL0(err == TIXML_SUCCESS, "Unable to read attribute ID.");
+
+    TiXmlNode *boundaryRegionChild = boundaryRegionsElement->FirstChild();
+    // This is primarily to skip comments that may be present.
+    // Comments appear as nodes just like elements.
+    // We are specifically looking for text in the body
+    // of the definition.
+    while (boundaryRegionChild &&
+           boundaryRegionChild->Type() != TiXmlNode::TINYXML_TEXT) {
+      boundaryRegionChild = boundaryRegionChild->NextSibling();
+    }
+
+    ASSERTL0(boundaryRegionChild, "Unable to read variable definition body.");
+    std::string boundaryRegionStr = boundaryRegionChild->ToText()->Value();
+
+    std::string::size_type indxBeg = boundaryRegionStr.find_first_of('[') + 1;
+    std::string::size_type indxEnd = boundaryRegionStr.find_last_of(']') - 1;
+
+    ASSERTL0(indxBeg <= indxEnd,
+             (std::string("Error reading boundary region definition:") +
+              boundaryRegionStr)
+                 .c_str());
+
+    std::string indxStr =
+        boundaryRegionStr.substr(indxBeg, indxEnd - indxBeg + 1);
+
+    if (!indxStr.empty()) {
+      // Extract the composites from the string and return them in a list.
+
+      NESOASSERT(boundary_groups.count(indx) == 0, "Boundary region " +
+                                                       indxStr +
+                                                       " defined more than "
+                                                       "once!");
+      std::vector<unsigned int> u_composites;
+      ParseUtils::GenerateSeqVector(indxStr, u_composites);
+      if (u_composites.size() > 0) {
+        boundary_groups[indx] =
+            std::vector<int>(u_composites.begin(), u_composites.end());
+      }
+    }
+    boundaryRegionsElement = boundaryRegionsElement->NextSiblingElement("B");
+  }
+}
+
+std::map<int, std::vector<int>> &NESOReader::get_boundary_regions() {
+  return this->boundary_groups;
+}
+
 void NESOReader::read_species() {
   NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
 
@@ -1260,18 +1337,14 @@ void NESOReader::read_species_parameter(TiXmlElement *specie,
   }
 }
 
-void NESOReader::read_reactions(TiXmlElement *neso) {
-  TiXmlElement *reactions_element = neso->FirstChildElement("VANTAGE");
-  if (reactions_element) {
-    TiXmlElement *reaction_r = reactions_element->FirstChildElement("R");
+void NESOReader::read_reactions(TiXmlElement *vantage) {
+  if (vantage) {
+    TiXmlElement *reaction_r = vantage->FirstChildElement("R");
 
     while (reaction_r) {
       std::stringstream tagcontent;
       tagcontent << *reaction_r;
-      std::string id = reaction_r->Attribute("ID");
-      NESOASSERT(!id.empty(), "Missing ID attribute in Reaction XML "
-                              "element: \n\t'" +
-                                  tagcontent.str() + "'");
+
       std::string type = reaction_r->Attribute("TYPE");
       NESOASSERT(!type.empty(),
                  "TYPE attribute must be non-empty in XML element:\n\t'" +
@@ -1288,7 +1361,7 @@ void NESOReader::read_reactions(TiXmlElement *neso) {
                    "Species '" + s +
                        "' not found.  Ensure it is specified under the "
                        "<SPECIES> tag");
-        std::get<1>(reaction_map).push_back(std::stoi(s));
+        std::get<1>(reaction_map).push_back(s);
       }
 
       TiXmlElement *rate = reaction_r->FirstChildElement("RATE");
@@ -1304,23 +1377,19 @@ void NESOReader::read_reactions(TiXmlElement *neso) {
       }
 
       reaction_r = reaction_r->NextSiblingElement("R");
-      this->reactions[std::stoi(id)] = reaction_map;
+      this->reactions.push_back(reaction_map);
     }
   }
 }
 
-void NESOReader::read_surface_reactions(TiXmlElement *neso) {
-  TiXmlElement *reactions_element = neso->FirstChildElement("VANTAGE");
-  if (reactions_element) {
-    TiXmlElement *reaction_r = reactions_element->FirstChildElement("S");
+void NESOReader::read_surface_reactions(TiXmlElement *vantage) {
+  if (vantage) {
+    TiXmlElement *reaction_r = vantage->FirstChildElement("S");
 
     while (reaction_r) {
       std::stringstream tagcontent;
       tagcontent << *reaction_r;
-      std::string id = reaction_r->Attribute("ID");
-      NESOASSERT(!id.empty(), "Missing ID attribute in Reaction XML "
-                              "element: \n\t'" +
-                                  tagcontent.str() + "'");
+
       std::string type = reaction_r->Attribute("TYPE");
       NESOASSERT(!type.empty(),
                  "TYPE attribute must be non-empty in XML element:\n\t'" +
@@ -1337,7 +1406,7 @@ void NESOReader::read_surface_reactions(TiXmlElement *neso) {
                    "Species '" + s +
                        "' not found.  Ensure it is specified under the "
                        "<SPECIES> tag");
-        std::get<1>(reaction_map).push_back(std::stoi(s));
+        std::get<1>(reaction_map).push_back(s);
       }
 
       TiXmlElement *region = reaction_r->FirstChildElement("REGION");
@@ -1358,35 +1427,28 @@ void NESOReader::read_surface_reactions(TiXmlElement *neso) {
       }
 
       reaction_r = reaction_r->NextSiblingElement("S");
-      this->surface_reactions[std::stoi(id)] = reaction_map;
+      this->surface_reactions.push_back(reaction_map);
     }
   }
 }
 
-void NESOReader::read_particles() {
+void NESOReader::read_vantage() {
   // Check we actually have a document loaded.
   NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
 
   TiXmlHandle docHandle(&this->session->GetDocument());
-  TiXmlElement *neso;
 
   // Look for all data in PARTICLES block.
-  neso =
-      docHandle.FirstChildElement("NEKTAR").FirstChildElement("NESO").Element();
-  TiXmlElement *particles;
+  TiXmlElement *vantage = docHandle.FirstChildElement("NEKTAR")
+                              .FirstChildElement("NESO")
+                              .FirstChildElement("VANTAGE")
+                              .Element();
 
-  // Look for all data in PARTICLES block.
-  particles = docHandle.FirstChildElement("NEKTAR")
-                  .FirstChildElement("NESO")
-                  .FirstChildElement("PARTICLES")
-                  .Element();
-
-  if (!particles) {
+  if (!vantage) {
     return;
   }
-  read_parameters(particles);
-  read_reactions(neso);
-  read_surface_reactions(neso);
+  read_reactions(vantage);
+  read_surface_reactions(vantage);
 }
 
 void NESOReader::load_particle_species_parameter(const std::string &s,

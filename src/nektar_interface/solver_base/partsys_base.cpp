@@ -90,7 +90,6 @@ void PartSysBase::init_object() {
   this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
 
-  this->config->read_particles();
   // Create ParticleSpec
   this->init_spec();
   this->read_params();
