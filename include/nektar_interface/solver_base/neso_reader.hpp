@@ -78,7 +78,7 @@ public:
 
   void read_boundary_regions();
 
-  std::map<int, std::vector<int>>& get_boundary_regions();
+  std::map<int, std::vector<int>> &get_boundary_regions();
 
   /// @brief Reads the VANTAGE tag from xml document
   void read_vantage();
@@ -86,9 +86,12 @@ public:
   std::vector<std::string> get_species_variables(const std::string &) const;
   void load_species_parameter(const std::string &, const std::string &name,
                               int &var) const;
-
+  void load_species_parameter(const std::string &, const std::string &name,
+                              int &var, const int &def) const;
   void load_species_parameter(const std::string &, const std::string &name,
                               NekDouble &var) const;
+  void load_species_parameter(const std::string &, const std::string &name,
+                              NekDouble &var, const NekDouble &def) const;
   bool defines_species_function(const std::string &,
                                 const std::string &name) const;
 
@@ -144,18 +147,18 @@ public:
     return this->surface_reactions;
   }
 
-  /// @param species
-  /// @param name
-  /// @param var
   void load_particle_species_parameter(const std::string &s,
                                        const std::string &name, int &var) const;
-  /// @brief Loads a species parameter (double)
-  /// @param species
-  /// @param name
-  /// @param var
+  void load_particle_species_parameter(const std::string &s,
+                                       const std::string &name, int &var,
+                                       const int &def) const;
+
   void load_particle_species_parameter(const std::string &s,
                                        const std::string &name,
                                        NekDouble &var) const;
+  void load_particle_species_parameter(const std::string &s,
+                                       const std::string &name, NekDouble &var,
+                                       const NekDouble &def) const;
 
   int get_particle_species_initial_N(const std::string &s) const;
 

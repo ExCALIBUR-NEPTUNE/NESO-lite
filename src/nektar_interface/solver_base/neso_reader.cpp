@@ -209,6 +209,20 @@ void NESOReader::load_species_parameter(const std::string &s,
 }
 
 void NESOReader::load_species_parameter(const std::string &s,
+                                        const std::string &name, int &var,
+                                        const int &def) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<0>(this->species.at(s));
+  auto param_iter = map.find(name_upper);
+  if (param_iter != map.end()) {
+    NekDouble param = round(param_iter->second);
+    var = LU::checked_cast<int>(param);
+  } else {
+    var = def;
+  }
+}
+
+void NESOReader::load_species_parameter(const std::string &s,
                                         const std::string &name,
                                         NekDouble &var) const {
   std::string name_upper = boost::to_upper_copy(name);
@@ -217,6 +231,19 @@ void NESOReader::load_species_parameter(const std::string &s,
   NESOASSERT(param_iter != map.end(),
              "Required parameter '" + name + "' not specified in session.");
   var = param_iter->second;
+}
+
+void NESOReader::load_species_parameter(const std::string &s,
+                                        const std::string &name, NekDouble &var,
+                                        const NekDouble &def) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<0>(this->species.at(s));
+  auto param_iter = map.find(name_upper);
+  if (param_iter != map.end()) {
+    var = param_iter->second;
+  } else {
+    var = def;
+  }
 }
 
 std::vector<std::string>
@@ -1299,6 +1326,21 @@ void NESOReader::load_particle_species_parameter(const std::string &s,
 
 void NESOReader::load_particle_species_parameter(const std::string &s,
                                                  const std::string &name,
+                                                 int &var,
+                                                 const int &def) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<0>(this->particle_species.at(s));
+  auto param_iter = map.find(name_upper);
+  if (param_iter != map.end()) {
+    NekDouble param = round(param_iter->second);
+    var = LU::checked_cast<int>(param);
+  } else {
+    var = def;
+  }
+}
+
+void NESOReader::load_particle_species_parameter(const std::string &s,
+                                                 const std::string &name,
                                                  NekDouble &var) const {
   std::string name_upper = boost::to_upper_copy(name);
   auto map = std::get<0>(this->particle_species.at(s));
@@ -1306,6 +1348,20 @@ void NESOReader::load_particle_species_parameter(const std::string &s,
   NESOASSERT(param_iter != map.end(),
              "Required parameter '" + name + "' not specified in session.");
   var = param_iter->second;
+}
+
+void NESOReader::load_particle_species_parameter(const std::string &s,
+                                                 const std::string &name,
+                                                 NekDouble &var,
+                                                 const NekDouble &def) const {
+  std::string name_upper = boost::to_upper_copy(name);
+  auto map = std::get<0>(this->particle_species.at(s));
+  auto param_iter = map.find(name_upper);
+  if (param_iter != map.end()) {
+    var = param_iter->second;
+  } else {
+    var = def;
+  }
 }
 
 int NESOReader::get_particle_species_initial_N(const std::string &s) const {
