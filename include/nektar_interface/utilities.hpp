@@ -58,6 +58,11 @@ public:
                ? this->field_to_index[field_name]
                : -1;
   }
+  const int get_idx(std::string field_name) const {
+    return (this->field_to_index.count(field_name) > 0)
+               ? this->field_to_index.at(field_name)
+               : -1;
+  }
 
   /**
    * Identical to get_idx except this method mirrors the std library behaviour
@@ -68,6 +73,9 @@ public:
    * @throws std::out_of_range if field doesn't exist.
    */
   int at(std::string field_name) { return this->field_to_index.at(field_name); }
+  const int at(std::string field_name) const {
+    return this->field_to_index.at(field_name);
+  }
 
   /**
    * Unlike std::map, [] operator can be used for read access, but not for

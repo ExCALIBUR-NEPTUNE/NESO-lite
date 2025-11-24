@@ -175,21 +175,11 @@ public:
   const ParticleSpeciesBoundaryList &
   get_particle_species_boundary(const std::string &s) const;
 
-  /// Load an integer parameter
-  void load_parameter(const std::string &name, int &var) const;
-  /// Load an size_t parameter
-  void load_parameter(const std::string &name, size_t &var) const;
-  /// Check for and load an integer parameter.
-  void load_parameter(const std::string &name, int &var, const int &def) const;
-  /// Check for and load an size_t parameter.
-  void load_parameter(const std::string &name, size_t &var,
-                      const size_t &def) const;
-  /// Load a double precision parameter
-  void load_parameter(const std::string &name, NekDouble &var) const;
-  /// Check for and load a double-precision parameter.
-  void load_parameter(const std::string &name, NekDouble &var,
-                      const NekDouble &def) const;
   void read_species_parameter(TiXmlElement *specie, LU::ParameterMap &map);
+
+  inline LU::SessionReaderSharedPtr get_session() const {
+    return this->session;
+  }
 
 private:
   // Nektar++ SessionReader
@@ -202,8 +192,6 @@ private:
   std::map<std::string, std::string> particle_info;
   // Map of particle species
   ParticleSpeciesMapList particle_species;
-  // Particle parameters
-  LU::ParameterMap parameters;
   /// Functions.
   LU::FunctionMap functions;
 

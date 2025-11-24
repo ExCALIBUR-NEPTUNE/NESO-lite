@@ -68,7 +68,8 @@ bool PartSysBase::is_output_step(int step) {
 void PartSysBase::read_params() {
   // Output frequency
   // ToDo Should probably be unsigned, but complicates use of LoadParameter
-  this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+  this->config->get_session()->LoadParameter(PART_OUTPUT_FREQ_STR,
+                                             this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
 }
 
@@ -87,7 +88,8 @@ void PartSysBase::write(const int step) {
 };
 
 void PartSysBase::init_object() {
-  this->config->load_parameter(PART_OUTPUT_FREQ_STR, this->output_freq, 0);
+  this->config->get_session()->LoadParameter(PART_OUTPUT_FREQ_STR,
+                                             this->output_freq, 0);
   report_param("Output frequency (steps)", this->output_freq);
 
   // Create ParticleSpec
