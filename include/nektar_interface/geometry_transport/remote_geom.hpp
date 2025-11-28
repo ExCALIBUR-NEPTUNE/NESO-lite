@@ -69,6 +69,9 @@ public:
   /// Additional int properties.
   std::vector<int> aux_int_properties;
 
+  std::vector<std::shared_ptr<SpatialDomains::PointGeom>> vertices;
+  std::vector<std::shared_ptr<SpatialDomains::SegGeom>> edges;
+
   RemoteGeom() = default;
 
   /**
@@ -78,8 +81,9 @@ public:
    *  @param id Remote id of this geometry object.
    *  @param geom Shared pointer to local copy of the geometry object.
    */
-  RemoteGeom(int rank, int id, std::shared_ptr<T> geom)
-      : rank(rank), id(id), geom(geom){};
+  RemoteGeom(int rank, int id, T *geom) : rank(rank), id(id) {
+    this->geom = std::make_shared<T>(*dynamic_cast<T *>(geom));
+  };
 
   /**
    * Get the Nektar++ bounding box for the geometry object.
@@ -140,9 +144,8 @@ public:
       const int num_edges = face->GetNumEdges();
       this->push_offset(&offset, &num_edges);
       for (int ex = 0; ex < num_edges; ex++) {
-        auto edge = std::dynamic_pointer_cast<SegGeom>(face->GetEdge(ex));
-        NESOASSERT(edge.get() != nullptr,
-                   "Face edge could not be cast to SegGeom");
+        auto edge = dynamic_cast<SegGeom *>(face->GetEdge(ex));
+        NESOASSERT(edge != nullptr, "Face edge could not be cast to SegGeom");
         lambda_push_edge(edge);
       }
       // curve of the face
@@ -197,7 +200,7 @@ public:
     auto lambda_push_point = [&](auto point) {
       PointStruct ps;
       ps.coordim = point->GetCoordim();
-      ps.vid = point->GetVid();
+      ps.vid = point->GetGlobalID();
       point->GetCoords(ps.x, ps.y, ps.z);
       this->push(buffer, &offset, &ps);
     };
@@ -239,9 +242,8 @@ public:
       for (int ex = 0; ex < num_edges; ex++) {
         // The TriGeoms and QuadGeoms are constructed with SegGeoms so this
         // should be fine.
-        auto edge = std::dynamic_pointer_cast<SegGeom>(face->GetEdge(ex));
-        NESOASSERT(edge.get() != nullptr,
-                   "Face edge could not be cast to SegGeom");
+        auto edge = dynamic_cast<SegGeom *>(face->GetEdge(ex));
+        NESOASSERT(edge != nullptr, "Face edge could not be cast to SegGeom");
         lambda_push_edge(edge);
       }
       // curve of the face
@@ -315,31 +317,33 @@ public:
       this->pop(buffer, &offset, &coordim);
       int num_verts;
       this->pop(buffer, &offset, &num_verts);
-      std::vector<SpatialDomains::PointGeomSharedPtr> vertices;
+      std::array<PointGeom *, 2> point_arr;
       for (int vx = 0; vx < num_verts; vx++) {
         this->pop(buffer, &offset, &ps);
-        vertices.push_back(std::make_shared<SpatialDomains::PointGeom>(
+        this->vertices.push_back(std::make_shared<SpatialDomains::PointGeom>(
             ps.coordim, ps.vid, ps.x, ps.y, ps.z));
+        point_arr[vx] = this->vertices.back().get();
       }
       // In future the edge might have a corresponding curve
       this->pop(buffer, &offset, &gs);
       ASSERTL0(gs.n_points == -1, "unpacking routine did not expect a curve");
-      auto g = std::make_shared<SpatialDomains::SegGeom>(gid, coordim,
-                                                         vertices.data());
-      g->GetGeomFactors();
+      auto g =
+          std::make_shared<SpatialDomains::SegGeom>(gid, coordim, point_arr);
+      LibUtilities::PointsKeyVector p = g->GetXmap()->GetPointsKeys();
+      g->GenGeomFactors(p);
       g->Setup();
       return g;
     };
 
     auto lambda_pop_face = [&](const auto shape_type) {
-      std::vector<SpatialDomains::SegGeomSharedPtr> edges;
+      
       int gid;
       this->pop(buffer, &offset, &gid);
       int num_edges;
       this->pop(buffer, &offset, &num_edges);
-      edges.reserve(num_edges);
+      this->edges.reserve(num_edges);
       for (int ex = 0; ex < num_edges; ex++) {
-        edges.push_back(lambda_pop_edge());
+        this->edges.push_back(lambda_pop_edge());
       }
       // curve of the face
       this->pop(buffer, &offset, &gs);
@@ -347,13 +351,22 @@ public:
 
       std::shared_ptr<Geometry2D> g;
       if (shape_type == LibUtilities::ShapeType::eTriangle) {
+        std::array<SegGeom *, TriGeom::kNedges> tri_edges;
+        for (int e = 0; e < TriGeom::kNedges; ++e) {
+          tri_edges[e] = this->edges[e].get();
+        }
         g = std::dynamic_pointer_cast<Geometry2D>(
-            std::make_shared<TriGeom>(gid, edges.data()));
+            std::make_shared<TriGeom>(gid, tri_edges));
       } else {
+        std::array<SegGeom *, QuadGeom::kNedges> quad_edges;
+        for (int e = 0; e < QuadGeom::kNedges; ++e) {
+          quad_edges[e] = this->edges[e].get();
+        }
         g = std::dynamic_pointer_cast<Geometry2D>(
-            std::make_shared<QuadGeom>(gid, edges.data()));
+            std::make_shared<QuadGeom>(gid, quad_edges));
       }
-      g->GetGeomFactors();
+      LibUtilities::PointsKeyVector p = g->GetXmap()->GetPointsKeys();
+      g->GenGeomFactors(p);
       g->Setup();
       return g;
     };
@@ -363,7 +376,7 @@ public:
       this->pop(buffer, &offset, &gid);
       int num_faces;
       this->pop(buffer, &offset, &num_faces);
-      std::vector<SpatialDomains::Geometry2DSharedPtr> faces;
+      std::vector<std::shared_ptr<SpatialDomains::Geometry2D>> faces;
       faces.reserve(num_faces);
       for (int fx = 0; fx < num_faces; fx++) {
         int face_shape_type_int;
@@ -374,29 +387,36 @@ public:
       // Polyhedra don't seem to have a curve in Nektar++
       std::shared_ptr<Geometry3D> g;
       if (shape_type == LibUtilities::ShapeType::eTetrahedron) {
-        std::vector<TriGeomSharedPtr> tmp_faces;
-        tmp_faces.reserve(num_faces);
-        for (auto fx : faces) {
-          tmp_faces.push_back(std::dynamic_pointer_cast<TriGeom>(fx));
+        std::array<TriGeom *, TetGeom::kNfaces> tmp_faces;
+        for (int f = 0; f < TetGeom::kNfaces; ++f) {
+          tmp_faces[f] = dynamic_cast<TriGeom *>(faces[f].get());
         }
         g = std::dynamic_pointer_cast<Geometry3D>(
-            std::make_shared<TetGeom>(gid, tmp_faces.data()));
+            std::make_shared<TetGeom>(gid, tmp_faces));
       } else if (shape_type == LibUtilities::ShapeType::ePyramid) {
-        g = std::dynamic_pointer_cast<Geometry3D>(
-            std::make_shared<PyrGeom>(gid, faces.data()));
-      } else if (shape_type == LibUtilities::ShapeType::ePrism) {
-        g = std::dynamic_pointer_cast<Geometry3D>(
-            std::make_shared<PrismGeom>(gid, faces.data()));
-      } else {
-        std::vector<QuadGeomSharedPtr> tmp_faces;
-        tmp_faces.reserve(num_faces);
-        for (auto fx : faces) {
-          tmp_faces.push_back(std::dynamic_pointer_cast<QuadGeom>(fx));
+        std::array<Geometry2D *, PyrGeom::kNfaces> tmp_faces;
+        for (int f = 0; f < PyrGeom::kNfaces; ++f) {
+          tmp_faces[f] = faces[f].get();
         }
         g = std::dynamic_pointer_cast<Geometry3D>(
-            std::make_shared<HexGeom>(gid, tmp_faces.data()));
+            std::make_shared<PyrGeom>(gid, tmp_faces));
+      } else if (shape_type == LibUtilities::ShapeType::ePrism) {
+        std::array<Geometry2D *, PrismGeom::kNfaces> tmp_faces;
+        for (int f = 0; f < PrismGeom::kNfaces; ++f) {
+          tmp_faces[f] = faces[f].get();
+        }
+        g = std::dynamic_pointer_cast<Geometry3D>(
+            std::make_shared<PrismGeom>(gid, tmp_faces));
+      } else {
+        std::array<QuadGeom *, HexGeom::kNfaces> tmp_faces;
+        for (int f = 0; f < HexGeom::kNfaces; ++f) {
+          tmp_faces[f] = dynamic_cast<QuadGeom *>(faces[f].get());
+        }
+        g = std::dynamic_pointer_cast<Geometry3D>(
+            std::make_shared<HexGeom>(gid, tmp_faces));
       }
-      g->GetGeomFactors();
+      LibUtilities::PointsKeyVector p = g->GetXmap()->GetPointsKeys();
+      g->GenGeomFactors(p);
       g->Setup();
       return g;
     };
@@ -410,8 +430,8 @@ public:
       this->geom =
           std::dynamic_pointer_cast<T>(lambda_pop_polyhedron(shape_type));
     }
-
-    this->geom->GetGeomFactors();
+    LibUtilities::PointsKeyVector p = geom->GetXmap()->GetPointsKeys();
+    this->geom->GenGeomFactors(p);
     this->geom->Setup();
 
     NESOASSERT(offset == num_bytes, "Not all data was deserialised");

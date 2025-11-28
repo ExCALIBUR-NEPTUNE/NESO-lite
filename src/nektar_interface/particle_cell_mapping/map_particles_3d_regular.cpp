@@ -12,15 +12,15 @@ MapParticles3DRegular::MapParticles3DRegular(
 
   // filter out the non-regular elements
   // process locally owned elements
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+  std::map<int, Nektar::SpatialDomains::Geometry3D*>
       geoms_local;
   {
     // Get the locally owned elements
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+    std::map<int, Nektar::SpatialDomains::Geometry3D*>
         geoms_local_tmp;
     get_all_elements_3d(particle_mesh_interface->graph, geoms_local_tmp);
     for (auto &geom : geoms_local_tmp) {
-      if (geom.second->GetMetricInfo()->GetGtype() == eRegular) {
+      if (geom.second->CalcGeomType() == eRegular) {
         geoms_local[geom.first] = geom.second;
       }
     }
@@ -32,7 +32,7 @@ MapParticles3DRegular::MapParticles3DRegular(
   {
     auto &geoms_remote_tmp = particle_mesh_interface->remote_geoms_3d;
     for (auto &geom : geoms_remote_tmp) {
-      if (geom->geom->GetMetricInfo()->GetGtype() == eRegular) {
+      if (geom->geom->CalcGeomType() == eRegular) {
         geoms_remote.push_back(geom);
       }
     }

@@ -2,11 +2,10 @@
 
 namespace NESO {
 
-void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry1D> geom,
+void get_normal_vector(SpatialDomains::Geometry1D *geom,
                        std::vector<REAL> &normal) {
-  SpatialDomains::SegGeomSharedPtr curve;
-  if ((curve = std::dynamic_pointer_cast<SpatialDomains::SegGeom>(geom)) !=
-      nullptr) {
+  SpatialDomains::SegGeom *curve;
+  if ((curve = dynamic_cast<SpatialDomains::SegGeom *>(geom)) != nullptr) {
     NESOASSERT(curve->GetCurve() == nullptr,
                "Cannot compute a normal vector to a curved line.");
   }
@@ -35,7 +34,7 @@ void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry1D> geom,
   normal.push_back(n1);
 }
 
-void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry2D> geom,
+void get_normal_vector(SpatialDomains::Geometry2D *geom,
                        std::vector<REAL> &normal) {
 
   NESOASSERT(geom->GetCurve() == nullptr,
@@ -82,7 +81,7 @@ void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry2D> geom,
   normal.push_back(ntz);
 }
 
-void get_vertex_average(std::shared_ptr<SpatialDomains::Geometry> geom,
+void get_vertex_average(SpatialDomains::Geometry *geom,
                         std::vector<REAL> &average) {
 
   const int num_vertices = geom->GetNumVerts();

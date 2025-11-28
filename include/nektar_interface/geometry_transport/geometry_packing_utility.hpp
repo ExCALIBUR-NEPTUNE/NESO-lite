@@ -55,10 +55,10 @@ template <class T> class GeomExtern : public T {
 private:
 protected:
 public:
-  SpatialDomains::SegGeomSharedPtr GetSegGeom(int index) {
+  SpatialDomains::SegGeom *GetSegGeom(int index) {
     return this->m_edges[index];
   };
-  SpatialDomains::CurveSharedPtr GetCurve() { return this->m_curve; };
+  SpatialDomains::Curve *GetCurve() { return this->m_curve; };
 };
 
 } // namespace NESO::GeometryTransport

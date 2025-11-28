@@ -47,13 +47,13 @@ struct NewtonRelativeExitTolerances {
  * @param[in, out] Output device copyable tolerances object.
  */
 inline void create_newton_relative_exit_tolerances(
-    Nektar::SpatialDomains::GeometrySharedPtr geom,
+    Nektar::SpatialDomains::Geometry* geom,
     NewtonRelativeExitTolerances *newton_relative_exit_tolerances) {
 
-  auto m_xmap = geom->GetXmap();
-  auto m_geomFactors = geom->GetGeomFactors();
+  LibUtilities::PointsKeyVector p = geom->GetXmap()->GetPointsKeys();
+  auto m_geomFactors = geom->GenGeomFactors(p);
   Nektar::Array<Nektar::OneD, const Nektar::NekDouble> Jac =
-      m_geomFactors->GetJac(m_xmap->GetPointsKeys());
+      m_geomFactors->GetJac();
   Nektar::NekDouble tol_scaling =
       Vmath::Vsum(Jac.size(), Jac, 1) / ((Nektar::NekDouble)Jac.size());
   newton_relative_exit_tolerances->scaling_jacobian =

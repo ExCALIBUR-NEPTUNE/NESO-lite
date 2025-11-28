@@ -27,7 +27,7 @@ namespace NESO {
  */
 void get_all_elements_3d(
     Nektar::SpatialDomains::MeshGraphSharedPtr &graph,
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> &geoms);
+    std::map<int, Nektar::SpatialDomains::Geometry3D *> &geoms);
 
 /**
  * Get a local 3D geometry object from a Nektar++ MeshGraph
@@ -35,8 +35,7 @@ void get_all_elements_3d(
  * @param graph Nektar++ MeshGraph to return geometry object from.
  * @returns Local 3D geometry object.
  */
-Geometry3DSharedPtr
-get_element_3d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph);
+Geometry3D *get_element_3d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph);
 
 /**
  * Categorise geometry types by shape, local or remote and X-map type.
@@ -77,8 +76,7 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
  * 3D geometry objects.
  */
 void reconstruct_geoms_3d(
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
         &rank_element_map_2d,
     std::vector<int> &packed_geoms,
     std::vector<std::shared_ptr<RemoteGeom3D>> &output_container);
@@ -93,7 +91,7 @@ void reconstruct_geoms_3d(
  * @param[in,out] deconstructed_geoms Output vector to push description onto.
  */
 void deconstruct_geoms_base_3d(const int rank, const int geometry_id,
-                               std::shared_ptr<Geometry3D> geom,
+                               Geometry3D *geom,
                                std::vector<int> &deconstructed_geoms);
 
 /**
@@ -107,7 +105,7 @@ void deconstruct_geoms_base_3d(const int rank, const int geometry_id,
  * @param[in,out] face_ids Set of face ids to add faces to.
  */
 void deconstruct_geoms_3d(const int rank, const int geometry_id,
-                          std::shared_ptr<Geometry3D> geom,
+                          Geometry3D *geom,
                           std::vector<int> &deconstructed_geoms,
                           std::set<int> &face_ids);
 
@@ -132,21 +130,17 @@ void deconstruct_geoms_3d(const int rank, const int geometry_id,
  *  @param[in, out] rank_quad Map from remote MPI rank to QuadGeom ids and
  * objects to pack and send.
  */
-void deconstuct_per_rank_geoms_3d(
+void deconstruct_per_rank_geoms_3d(
     const int original_rank,
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-        &geoms_2d,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+    std::map<int, Nektar::SpatialDomains::Geometry2D *> &geoms_2d,
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry3D *>>
         &rank_element_map,
     const int num_send_ranks, std::vector<int> &send_ranks,
     std::vector<int> &send_sizes,
     std::map<int, std::vector<int>> &deconstructed_geoms,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::TriGeom>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::TriGeom *>>
         &rank_triangle_map,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::QuadGeom *>>
         &rank_quad_map);
 
 /**

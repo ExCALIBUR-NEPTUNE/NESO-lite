@@ -31,7 +31,7 @@ namespace NESO::BoundingBox {
  */
 std::array<double, 6>
 get_bounding_box(Particles::SYCLTargetSharedPtr sycl_target,
-                 SD::GeometrySharedPtr geom,
+                 std::shared_ptr<SD::Geometry> geom,
                  ParameterStoreSharedPtr parameter_store = nullptr);
 
 /**
@@ -51,7 +51,7 @@ get_bounding_box(Particles::SYCLTargetSharedPtr sycl_target,
  * @returns Bounding box in format [minx, miny, minz, maxx, maxy, maxz];
  */
 std::array<double, 6>
-get_bounding_box(SD::GeometrySharedPtr geom,
+get_bounding_box(std::shared_ptr<SD::Geometry> geom,
                  ParameterStoreSharedPtr parameter_store = nullptr);
 
 } // namespace NESO::BoundingBox

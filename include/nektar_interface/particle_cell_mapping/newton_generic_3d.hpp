@@ -41,7 +41,7 @@ template <> struct mapping_host_device_types<MappingGeneric3D> {
 struct MappingGeneric3D : MappingNewtonIterationBase<MappingGeneric3D> {
 
   inline void write_data_v(SYCLTargetSharedPtr sycl_target,
-                           GeometrySharedPtr geom, DataHost *data_host,
+                           Geometry* geom, DataHost *data_host,
                            DataDevice *data_device) {
 
     auto lambda_as_vector = [](const auto &a) -> std::vector<REAL> {

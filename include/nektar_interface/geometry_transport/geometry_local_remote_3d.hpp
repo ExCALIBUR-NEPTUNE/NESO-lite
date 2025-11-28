@@ -16,7 +16,7 @@ namespace NESO {
  */
 struct GeometryLocalRemote3D {
   /// Local geometry objects which are owned by this MPI rank.
-  std::map<int, std::shared_ptr<Geometry3D>> local;
+  std::map<int, Geometry3D *> local;
   /// Remote geometry objects where a copy is stored on this MPI rank.
   std::vector<std::shared_ptr<RemoteGeom3D>> remote;
 
@@ -26,7 +26,7 @@ struct GeometryLocalRemote3D {
    *
    * @param geom Geometry object.
    */
-  inline void push_back(std::pair<int, std::shared_ptr<Geometry3D>> geom) {
+  inline void push_back(std::pair<int, Geometry3D *> geom) {
     this->local[geom.first] = geom.second;
   }
 

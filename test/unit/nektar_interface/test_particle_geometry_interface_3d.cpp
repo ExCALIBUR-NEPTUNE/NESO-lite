@@ -97,8 +97,7 @@ TEST(ParticleGeometryInterface, HaloExtend3D) {
   for (const INT cell : particle_mesh_interface->owned_mh_cells) {
     mh_cell_set.insert(cell);
   }
-  std::map<int,
-           std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+  std::map<int, std::map<int, Nektar::SpatialDomains::Geometry3D *>>
       rank_geoms_3d_map_local;
   std::map<INT, std::vector<std::pair<int, int>>> cells_to_rank_geoms;
   halo_get_rank_to_geoms_3d(particle_mesh_interface, rank_geoms_3d_map_local);

@@ -74,7 +74,7 @@ private:
           auto point = curve->m_points.at(pointx);
           PointStruct ps;
           ps.coordim = point->GetCoordim();
-          ps.vid = point->GetVid();
+          ps.vid = point->GetGlobalID();
           point->GetCoords(ps.x, ps.y, ps.z);
           push(&ps);
         }
@@ -97,7 +97,7 @@ private:
       for (int pointx = 0; pointx < num_points; pointx++) {
         auto point = seg_geom->GetVertex(pointx);
         ps.coordim = point->GetCoordim();
-        ps.vid = point->GetVid();
+        ps.vid = point->GetGlobalID();
         point->GetCoords(ps.x, ps.y, ps.z);
         push(&ps);
       }
@@ -131,9 +131,9 @@ private:
 
     // helper lambda to unpack a curve
     auto lambda_unpack_curve =
-        [&](const auto gs) -> SpatialDomains::CurveSharedPtr {
+        [&](const auto gs) -> std::shared_ptr<SpatialDomains::Curve> {
       if (gs.n_points < 0) {
-        return SpatialDomains::CurveSharedPtr();
+        return std::shared_ptr<SpatialDomains::Curve>();
       }
       const int m_curveID = gs.a;
       const int m_ptype_int = gs.b;
@@ -141,13 +141,15 @@ private:
           static_cast<LibUtilities::PointsType>(m_ptype_int);
 
       const int n_points = gs.n_points;
-      std::vector<SpatialDomains::PointGeomSharedPtr> m_points;
+      std::vector<SpatialDomains::PointGeom *> m_points;
+      curve_points.reserve(n_points);
       m_points.reserve(n_points);
       for (int pointx = 0; pointx < n_points; pointx++) {
         PointStruct ps;
         pop(&ps);
-        m_points.push_back(std::make_shared<SpatialDomains::PointGeom>(
+        curve_points.push_back(std::make_shared<SpatialDomains::PointGeom>(
             ps.coordim, ps.vid, ps.x, ps.y, ps.z));
+        m_points.push_back(curve_points.back().get());
       }
       auto curve = std::make_shared<SpatialDomains::Curve>(m_curveID, m_ptype);
       curve->m_points = m_points;
@@ -170,10 +172,12 @@ private:
       ASSERTL0(n_points >= 2, "Expected at least two points for an edge");
 
       const int points_offset = vertices.size();
+      std::array<PointGeom *, SegGeom::kNverts> point_arr;
       for (int pointx = 0; pointx < n_points; pointx++) {
         pop(&ps);
         vertices.push_back(std::make_shared<SpatialDomains::PointGeom>(
             ps.coordim, ps.vid, ps.x, ps.y, ps.z));
+        point_arr[pointx] = vertices.back().get();
       }
 
       pop(&gs);
@@ -181,7 +185,7 @@ private:
 
       // actually construct the edge
       auto edge_tmp = std::make_shared<SpatialDomains::SegGeom>(
-          edge_id, edge_coordim, vertices.data() + points_offset, curve);
+          edge_id, edge_coordim, point_arr, curve.get());
       // edge_tmp->Setup();
       edges.push_back(edge_tmp);
     }
@@ -194,8 +198,8 @@ private:
   /*
    *  Pack a 2DGeom into the buffer.
    */
-  template <typename T> void pack(std::shared_ptr<T> &geom) {
-    auto extern_geom = std::static_pointer_cast<GeomExtern<T>>(geom);
+  template <typename T> void pack(T *geom) {
+    auto extern_geom = static_cast<GeomExtern<T> *>(geom);
     this->pack_general(*extern_geom);
   }
 
@@ -209,20 +213,20 @@ private:
   int input_length = 0;
   int offset = 0;
 
-  std::vector<SpatialDomains::SegGeomSharedPtr> edges;
-  std::vector<SpatialDomains::PointGeomSharedPtr> vertices;
-  SpatialDomains::CurveSharedPtr curve;
+  std::vector<std::shared_ptr<SpatialDomains::SegGeom>> edges;
+  std::vector<std::shared_ptr<SpatialDomains::PointGeom>> vertices;
+  std::shared_ptr<SpatialDomains::Curve> curve;
+  std::vector<std::shared_ptr<SpatialDomains::PointGeom>> curve_points;
 
 public:
   std::vector<unsigned char> buf;
 
   PackedGeom2D(std::vector<unsigned char> &buf)
-      : buf_in(buf.data()), input_length(buf.size()){};
+      : buf_in(buf.data()), input_length(buf.size()) {};
   PackedGeom2D(unsigned char *buf_in, const int input_length = -1)
-      : buf_in(buf_in), input_length(input_length){};
+      : buf_in(buf_in), input_length(input_length) {};
 
-  template <typename T>
-  PackedGeom2D(int rank, int local_id, std::shared_ptr<T> &geom) {
+  template <typename T> PackedGeom2D(int rank, int local_id, T *geom) {
     this->shape_type_int = shape_type_to_int(geom->GetShapeType());
     this->rank = rank;
     this->local_id = local_id;
@@ -248,9 +252,14 @@ public:
    */
   template <typename T> std::shared_ptr<RemoteGeom2D<T>> unpack() {
     unpack_general();
+    std::array<SegGeom *, T::kNedges> edge_array;
+    for (int i = 0; i < T::kNedges; ++i) {
+      edge_array[i] = this->edges[i].get();
+    }
     std::shared_ptr<T> geom =
-        std::make_shared<T>(this->id, this->edges.data(), this->curve);
-    geom->GetGeomFactors();
+        std::make_shared<T>(this->id, edge_array, this->curve.get());
+    LibUtilities::PointsKeyVector p = geom->GetXmap()->GetPointsKeys();
+    geom->GenGeomFactors(p);
     geom->Setup();
 
     auto remote_geom = std::make_shared<RemoteGeom2D<T>>(rank, local_id, geom);

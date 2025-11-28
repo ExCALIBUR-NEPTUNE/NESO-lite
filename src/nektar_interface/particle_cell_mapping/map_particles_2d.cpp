@@ -13,8 +13,7 @@ MapParticles2D::MapParticles2D(
   this->count_regular = 0;
   this->count_deformed = 0;
 
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-      geoms_local;
+  std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_local;
   get_all_elements_2d(particle_mesh_interface->graph, geoms_local);
   count_geometry_types(geoms_local, &count_regular, &count_deformed);
   count_geometry_types(particle_mesh_interface->remote_triangles,
@@ -27,19 +26,18 @@ MapParticles2D::MapParticles2D(
 
   if (this->count_deformed > 0) {
 
-    std::map<int, std::shared_ptr<QuadGeom>> quads_local;
+    std::map<int, QuadGeom *> quads_local;
     std::vector<std::shared_ptr<RemoteGeom2D<QuadGeom>>> quads_remote;
 
     for (auto &geom : geoms_local) {
-      auto t = geom.second->GetMetricInfo()->GetGtype();
+      auto t = geom.second->CalcGeomType();
       auto s = geom.second->GetShapeType();
       if ((t == eDeformed) && (s == eQuadrilateral)) {
-        quads_local[geom.first] =
-            std::dynamic_pointer_cast<QuadGeom>(geom.second);
+        quads_local[geom.first] = dynamic_cast<QuadGeom *>(geom.second);
       }
     }
     for (auto &geom : particle_mesh_interface->remote_quads) {
-      auto t = geom->geom->GetMetricInfo()->GetGtype();
+      auto t = geom->geom->CalcGeomType();
       auto s = geom->geom->GetShapeType();
       if ((t == eDeformed) && (s == eQuadrilateral)) {
         quads_remote.push_back(geom);

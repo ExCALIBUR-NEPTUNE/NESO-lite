@@ -25,7 +25,7 @@ template <> struct mapping_host_device_types<MappingHexLinear3D> {
 struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
-                           GeometrySharedPtr geom, DataHost *data_host,
+                           Geometry* geom, DataHost *data_host,
                            DataDevice *data_device) {
 
     const int num_vertices = 8;
@@ -42,10 +42,9 @@ struct MappingHexLinear3D : MappingNewtonIterationBase<MappingHexLinear3D> {
     }
 
     // Exit tolerance scaling applied by Nektar++
-    auto m_xmap = geom->GetXmap();
-    auto m_geomFactors = geom->GetGeomFactors();
-    Array<OneD, const NekDouble> Jac =
-        m_geomFactors->GetJac(m_xmap->GetPointsKeys());
+    LibUtilities::PointsKeyVector p = geom->GetXmap()->GetPointsKeys();
+    auto m_geomFactors = geom->GenGeomFactors(p);
+    Array<OneD, const NekDouble> Jac = m_geomFactors->GetJac();
     NekDouble tol_scaling =
         Vmath::Vsum(Jac.size(), Jac, 1) / ((NekDouble)Jac.size());
     data_device->jacobian_scaling = ABS(1.0 / tol_scaling);

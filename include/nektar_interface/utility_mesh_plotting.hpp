@@ -24,10 +24,10 @@ namespace NESO {
  */
 class VTKGeometryWriter {
 protected:
-  std::vector<std::shared_ptr<Geometry>> geoms;
-  std::map<std::shared_ptr<Geometry>, REAL> geom_props;
+  std::vector<Geometry *> geoms;
+  std::map<Geometry *, REAL> geom_props;
 
-  inline REAL get_property(const std::shared_ptr<Geometry> ptr) {
+  inline REAL get_property(Geometry *ptr) {
     if (this->geom_props.count(ptr)) {
       return this->geom_props.at(ptr);
     } else {
@@ -38,8 +38,8 @@ protected:
 public:
   int rank;
 
-  VTKGeometryWriter() : rank(0){};
-  VTKGeometryWriter(const int rank) : rank(rank){};
+  VTKGeometryWriter() : rank(0) {};
+  VTKGeometryWriter(const int rank) : rank(rank) {};
 
   /**
    *  Push a geometry object onto the collection of objects to write to a vtk
@@ -48,11 +48,9 @@ public:
    *  @param[in] geom Shared pointer to Nektar++ geometry object.
    *  @param[in] prop Property to write with geometry object.
    */
-  template <typename T>
-  inline void push_back(std::shared_ptr<T> &geom, const REAL prop) {
-    auto ptr = std::dynamic_pointer_cast<Geometry>(geom);
-    this->geoms.push_back(ptr);
-    this->geom_props[ptr] = prop;
+  template <typename T> inline void push_back(T *geom, const REAL prop) {
+    this->geoms.push_back(geom);
+    this->geom_props[geom] = prop;
   }
 
   /**
@@ -61,7 +59,7 @@ public:
    *
    *  @param[in] geom Shared pointer to Nektar++ geometry object.
    */
-  template <typename T> inline void push_back(std::shared_ptr<T> &geom) {
+  template <typename T> inline void push_back(T *geom) {
     this->push_back(geom, 0.0);
   }
 
@@ -72,18 +70,18 @@ public:
    */
   inline void write(std::string filename) {
     // vertices required
-    std::map<int, std::shared_ptr<PointGeom>> vertices;
+    std::map<int, PointGeom *> vertices;
     // edges required
-    std::map<int, std::shared_ptr<Geometry1D>> edges;
+    std::map<int, Geometry1D *> edges;
 
     for (auto &geom : this->geoms) {
       const int num_edges = geom->GetNumEdges();
       for (int edgex = 0; edgex < num_edges; edgex++) {
-        Geometry1DSharedPtr edge = geom->GetEdge(edgex);
+        Geometry1D *edge = geom->GetEdge(edgex);
         const int num_verts = edge->GetNumVerts();
         NESOASSERT(num_verts == 2, "Expected edge to only have 2 vertices");
         for (int vertexx = 0; vertexx < num_verts; vertexx++) {
-          PointGeomSharedPtr vertex = edge->GetVertex(vertexx);
+          PointGeom *vertex = edge->GetVertex(vertexx);
           const int gid = vertex->GetGlobalID();
           vertices[gid] = vertex;
         }
@@ -148,7 +146,7 @@ public:
       properties.push_back(0.0);
     }
 
-    for (auto &geom : this->geoms) {
+    for (const auto &geom : this->geoms) {
       // Not sure if the vertex ordering of Nektar matches VTK so restrict to
       // 2D for now.
       if (geom->GetCoordim() == 2) {
@@ -156,7 +154,7 @@ public:
         cell_ints.push_back(num_verts);
         for (int vx = 0; vx < num_verts; vx++) {
           auto vertex = geom->GetVertex(vx);
-          const int vertex_gid = vertex->GetVid();
+          const int vertex_gid = vertex->GetGlobalID();
           const int vertex_vtk_id = gid_to_vid[vertex_gid];
           cell_ints.push_back(vertex_vtk_id);
         }
@@ -216,13 +214,13 @@ write_vtk_cells_owned(std::string filename,
   VTKGeometryWriter vtk_writer{rank};
 
   if (ndim == 2) {
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms;
+    std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms;
     get_all_elements_2d(particle_mesh_interface->graph, geoms);
     for (auto &geom : geoms) {
       vtk_writer.push_back(geom.second);
     }
   } else if (ndim == 3) {
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
+    std::map<int, Nektar::SpatialDomains::Geometry3D *> geoms;
     get_all_elements_3d(particle_mesh_interface->graph, geoms);
     for (auto &geom : geoms) {
       vtk_writer.push_back(geom.second);
@@ -253,14 +251,14 @@ write_vtk_cells_halo(std::string filename,
 
   if (ndim == 2) {
     for (auto &geom : particle_mesh_interface->remote_triangles) {
-      vtk_writer.push_back(geom->geom, geom->rank);
+      vtk_writer.push_back(geom->geom.get(), geom->rank);
     }
     for (auto &geom : particle_mesh_interface->remote_quads) {
-      vtk_writer.push_back(geom->geom, geom->rank);
+      vtk_writer.push_back(geom->geom.get(), geom->rank);
     }
   } else if (ndim == 3) {
     for (auto &geom : particle_mesh_interface->remote_geoms_3d) {
-      vtk_writer.push_back(geom->geom, geom->rank);
+      vtk_writer.push_back(geom->geom.get(), geom->rank);
     }
   }
 

@@ -120,7 +120,7 @@ public:
   MapParticlesNewton(
       MappingNewtonIterationBase<NEWTON_TYPE> newton_type,
       SYCLTargetSharedPtr sycl_target,
-      std::map<int, std::shared_ptr<TYPE_LOCAL>> &geoms_local,
+      std::map<int, TYPE_LOCAL*> &geoms_local,
       std::vector<std::shared_ptr<TYPE_REMOTE>> &geoms_remote,
       ParameterStoreSharedPtr config = std::make_shared<ParameterStore>())
       : CoarseMappersBase(sycl_target), newton_type(newton_type),
@@ -219,7 +219,8 @@ public:
                        (geom_type == index_tri) || (geom_type == index_quad),
                    "Unknown shape type.");
         this->dh_type->h_buffer.ptr[cell_index] = geom_type;
-        lambda_update_local_memory(this->write_data(geom->geom, cell_index));
+        auto pgeom = geom->geom.get();
+        lambda_update_local_memory(this->write_data(pgeom, cell_index));
         num_modes =
             std::max(num_modes, geom->geom->GetXmap()->EvalBasisNumModesMax());
       }

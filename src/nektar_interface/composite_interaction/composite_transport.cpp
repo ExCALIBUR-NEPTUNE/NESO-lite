@@ -72,7 +72,7 @@ void CompositeTransport::get_geometry(
         remote_segments.push_back(
             std::make_shared<
                 GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>(
-                gx.rank, gx.id, ptr));
+                gx.rank, gx.id, ptr.get()));
       }
     } else {
       NESOASSERT(false, "not implemented in 1D");
@@ -130,8 +130,7 @@ CompositeTransport::CompositeTransport(
   auto graph_composites = graph->GetComposites();
 
   // Vector of geometry objects and the composite they correspond to
-  std::vector<std::pair<SpatialDomains::GeometrySharedPtr, int>>
-      geometry_composites;
+  std::vector<std::pair<SpatialDomains::Geometry *, int>> geometry_composites;
 
   for (auto ix : composite_indices) {
     // check the composite of interest exists in the MeshGraph on this rank
@@ -163,7 +162,7 @@ CompositeTransport::CompositeTransport(
   const int mask = std::numeric_limits<int>::min();
 
   for (auto geom_pair : geometry_composites) {
-    SpatialDomains::GeometrySharedPtr geom = geom_pair.first;
+    SpatialDomains::Geometry* geom = geom_pair.first;
     const int composite = geom_pair.second;
 
     // find all mesh hierarchy cells the geom intersects with

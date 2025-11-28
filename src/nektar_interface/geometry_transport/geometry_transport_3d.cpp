@@ -10,24 +10,20 @@ namespace NESO {
  */
 void get_all_elements_3d(
     Nektar::SpatialDomains::MeshGraphSharedPtr &graph,
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> &geoms) {
+    std::map<int, Nektar::SpatialDomains::Geometry3D *> &geoms) {
   geoms.clear();
 
-  for (auto &e : graph->GetAllTetGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry3D>(e.second);
+  for (const auto &e : graph->GetGeomMap<TetGeom>()) {
+    geoms[e.first] = e.second;
   }
-  for (auto &e : graph->GetAllPyrGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry3D>(e.second);
+  for (const auto &e : graph->GetGeomMap<PyrGeom>()) {
+    geoms[e.first] = e.second;
   }
-  for (auto &e : graph->GetAllPrismGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry3D>(e.second);
+  for (const auto &e : graph->GetGeomMap<PrismGeom>()) {
+    geoms[e.first] = e.second;
   }
-  for (auto &e : graph->GetAllHexGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry3D>(e.second);
+  for (const auto &e : graph->GetGeomMap<HexGeom>()) {
+    geoms[e.first] = e.second;
   }
 }
 
@@ -37,29 +33,28 @@ void get_all_elements_3d(
  * @param graph Nektar++ MeshGraph to return geometry object from.
  * @returns Local 3D geometry object.
  */
-Geometry3DSharedPtr
-get_element_3d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph) {
+Geometry3D *get_element_3d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph) {
   {
-    auto geoms = graph->GetAllTetGeoms();
+    auto geoms = graph->GetGeomMap<TetGeom>();
     if (geoms.size() > 0) {
-      return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+      return (*(geoms.begin())).second;
     }
   }
   {
-    auto geoms = graph->GetAllPyrGeoms();
+    auto geoms = graph->GetGeomMap<PyrGeom>();
     if (geoms.size() > 0) {
-      return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+      return (*(geoms.begin())).second;
     }
   }
   {
-    auto geoms = graph->GetAllPrismGeoms();
+    auto geoms = graph->GetGeomMap<PrismGeom>();
     if (geoms.size() > 0) {
-      return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+      return (*(geoms.begin())).second;
     }
   }
-  auto geoms = graph->GetAllHexGeoms();
+  auto geoms = graph->GetGeomMap<HexGeom>();
   NESOASSERT(geoms.size() > 0, "No local 3D geometry objects found.");
-  return std::dynamic_pointer_cast<Geometry3D>(geoms.begin()->second);
+  return (*(geoms.begin())).second;
 }
 
 /**
@@ -74,7 +69,7 @@ void assemble_geometry_container_3d(
     std::vector<std::shared_ptr<RemoteGeom3D>> &remote_geoms_3d,
     GeometryContainer3D &output_container) {
 
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
+  std::map<int, Nektar::SpatialDomains::Geometry3D *> geoms;
   get_all_elements_3d(graph, geoms);
   for (auto geom : geoms) {
     output_container.push_back(geom);
@@ -96,8 +91,7 @@ void assemble_geometry_container_3d(
  */
 std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
     int **base_ptr,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
         &rank_element_map_2d) {
 
   int *ptr = *base_ptr;
@@ -106,12 +100,13 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
   const int shape_int = *ptr++;
   const Nektar::LibUtilities::ShapeType shape_type =
       int_to_shape_type(shape_int);
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-      &element_map = rank_element_map_2d[rank];
+  std::map<int, Nektar::SpatialDomains::Geometry2D *> &element_map =
+      rank_element_map_2d[rank];
 
   switch (shape_type) {
   case ShapeType::eHexahedron: {
-    std::vector<QuadGeomSharedPtr> faces(6);
+    std::vector<std::shared_ptr<QuadGeom>> faces(6);
+    std::array<QuadGeom *, 6> tmp_faces;
     for (int facex = 0; facex < 6; facex++) {
       const int face_id = *ptr++;
       auto face_ptr = element_map[face_id];
@@ -119,46 +114,67 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
       ASSERTL0(face_ptr->GetGlobalID() == face_id, "Element id missmatch.");
       ASSERTL0(face_ptr->GetShapeType() == ShapeType::eQuadrilateral,
                "Element type missmatch.");
-      faces[facex] = std::dynamic_pointer_cast<QuadGeom>(face_ptr);
+      faces[facex] =
+          std::make_shared<QuadGeom>(*dynamic_cast<QuadGeom *>(face_ptr));
+      tmp_faces[facex] = faces[facex].get();
     }
-    auto new_geom = std::make_shared<HexGeom>(geom_id, faces.data());
-    new_geom->GetGeomFactors();
+    auto new_geom = std::make_shared<HexGeom>(geom_id, tmp_faces);
+    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
+    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
     return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
   }
   case ShapeType::ePrism: {
-    std::vector<Geometry2DSharedPtr> faces(5);
+    std::vector<std::shared_ptr<Geometry2D>> faces(5);
+    std::array<Geometry2D *, 5> tmp_faces;
     for (int facex = 0; facex < 5; facex++) {
       const int face_id = *ptr++;
       auto face_ptr = element_map[face_id];
       ASSERTL0(face_ptr != nullptr, "No face in element map.");
       ASSERTL0(face_ptr->GetGlobalID() == face_id, "Element id missmatch.");
-      faces[facex] = face_ptr;
+      if (face_ptr->GetShapeType() == ShapeType::eQuadrilateral)
+        faces[facex] =
+            std::make_shared<QuadGeom>(*dynamic_cast<QuadGeom *>(face_ptr));
+      else if (face_ptr->GetShapeType() == ShapeType::eTriangle)
+        faces[facex] =
+            std::make_shared<TriGeom>(*dynamic_cast<TriGeom *>(face_ptr));
+
+      tmp_faces[facex] = faces[facex].get();
     }
-    auto new_geom = std::make_shared<PrismGeom>(geom_id, faces.data());
-    new_geom->GetGeomFactors();
+    auto new_geom = std::make_shared<PrismGeom>(geom_id, tmp_faces);
+    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
+    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
     return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
   }
   case ShapeType::ePyramid: {
-    std::vector<Geometry2DSharedPtr> faces(5);
+    std::vector<std::shared_ptr<Geometry2D>> faces(5);
+    std::array<Geometry2D *, 5> tmp_faces;
     for (int facex = 0; facex < 5; facex++) {
       const int face_id = *ptr++;
       auto face_ptr = element_map[face_id];
       ASSERTL0(face_ptr != nullptr, "No face in element map.");
       ASSERTL0(face_ptr->GetGlobalID() == face_id, "Element id missmatch.");
-      faces[facex] = face_ptr;
+      if (face_ptr->GetShapeType() == ShapeType::eQuadrilateral)
+        faces[facex] =
+            std::make_shared<QuadGeom>(*dynamic_cast<QuadGeom *>(face_ptr));
+      else if (face_ptr->GetShapeType() == ShapeType::eTriangle)
+        faces[facex] =
+            std::make_shared<TriGeom>(*dynamic_cast<TriGeom *>(face_ptr));
+      tmp_faces[facex] = faces[facex].get();
     }
-    auto new_geom = std::make_shared<PyrGeom>(geom_id, faces.data());
-    new_geom->GetGeomFactors();
+    auto new_geom = std::make_shared<PyrGeom>(geom_id, tmp_faces);
+    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
+    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
     return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
   }
   case ShapeType::eTetrahedron: {
-    std::vector<TriGeomSharedPtr> faces(4);
+    std::vector<std::shared_ptr<TriGeom>> faces(4);
+    std::array<TriGeom *, 4> tmp_faces;
     for (int facex = 0; facex < 4; facex++) {
       const int face_id = *ptr++;
       auto face_ptr = element_map[face_id];
@@ -166,10 +182,13 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
       ASSERTL0(face_ptr->GetGlobalID() == face_id, "Element id missmatch.");
       ASSERTL0(face_ptr->GetShapeType() == ShapeType::eTriangle,
                "Element type missmatch.");
-      faces[facex] = std::dynamic_pointer_cast<TriGeom>(face_ptr);
+      faces[facex] =
+          std::make_shared<TriGeom>(*dynamic_cast<TriGeom *>(face_ptr));
+      tmp_faces[facex] = faces[facex].get();
     }
-    auto new_geom = std::make_shared<TetGeom>(geom_id, faces.data());
-    new_geom->GetGeomFactors();
+    auto new_geom = std::make_shared<TetGeom>(geom_id, tmp_faces);
+    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
+    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
     return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
@@ -191,8 +210,7 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
  * 3D geometry objects.
  */
 void reconstruct_geoms_3d(
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
         &rank_element_map_2d,
     std::vector<int> &packed_geoms,
     std::vector<std::shared_ptr<RemoteGeom3D>> &output_container) {
@@ -218,7 +236,7 @@ void reconstruct_geoms_3d(
  * @param[in,out] deconstructed_geoms Output vector to push description onto.
  */
 void deconstruct_geoms_base_3d(const int rank, const int geometry_id,
-                               std::shared_ptr<Geometry3D> geom,
+                               Geometry3D *geom,
                                std::vector<int> &deconstructed_geoms) {
   deconstructed_geoms.push_back(rank);
   deconstructed_geoms.push_back(geometry_id);
@@ -244,7 +262,7 @@ void deconstruct_geoms_base_3d(const int rank, const int geometry_id,
  * @param[in,out] face_ids Set of face ids to add faces to.
  */
 void deconstruct_geoms_3d(const int rank, const int geometry_id,
-                          std::shared_ptr<Geometry3D> geom,
+                          Geometry3D *geom,
                           std::vector<int> &deconstructed_geoms,
                           std::set<int> &face_ids) {
   deconstruct_geoms_base_3d(rank, geometry_id, geom, deconstructed_geoms);
@@ -277,21 +295,17 @@ void deconstruct_geoms_3d(const int rank, const int geometry_id,
  *  @param[in, out] rank_quad Map from remote MPI rank to QuadGeom ids and
  * objects to pack and send.
  */
-void deconstuct_per_rank_geoms_3d(
+void deconstruct_per_rank_geoms_3d(
     const int original_rank,
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-        &geoms_2d,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+    std::map<int, Nektar::SpatialDomains::Geometry2D *> &geoms_2d,
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry3D *>>
         &rank_element_map,
     const int num_send_ranks, std::vector<int> &send_ranks,
     std::vector<int> &send_sizes,
     std::map<int, std::vector<int>> &deconstructed_geoms,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::TriGeom>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::TriGeom *>>
         &rank_triangle_map,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::QuadGeom *>>
         &rank_quad_map) {
 
   // the face ids to be sent to each remote rank
@@ -318,11 +332,9 @@ void deconstuct_per_rank_geoms_3d(
       const auto geom = geoms_2d.at(geom_id);
       const auto shape_type = geom->GetShapeType();
       if (shape_type == LibUtilities::ShapeType::eQuadrilateral) {
-        rank_quad_map[rank][geom_id] =
-            std::dynamic_pointer_cast<QuadGeom>(geom);
+        rank_quad_map[rank][geom_id] = dynamic_cast<QuadGeom *>(geom);
       } else if (shape_type == LibUtilities::ShapeType::eTriangle) {
-        rank_triangle_map[rank][geom_id] =
-            std::dynamic_pointer_cast<TriGeom>(geom);
+        rank_triangle_map[rank][geom_id] = dynamic_cast<TriGeom *>(geom);
       } else {
         ASSERTL0(false, "Unknown 2D shape type.");
       }

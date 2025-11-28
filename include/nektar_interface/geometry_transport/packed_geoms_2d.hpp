@@ -31,12 +31,26 @@ private:
 public:
   std::vector<unsigned char> buf;
 
-  PackedGeoms2D(){};
+  PackedGeoms2D() {};
 
   /*
    * Pack a set of geometry objects collected by calling GetAllQuadGeoms or
    * GetAllTriGeoms on a MeshGraph object.
    */
+  template <typename T> PackedGeoms2D(int rank, std::map<int, T *> &geom_map) {
+    const int num_geoms = geom_map.size();
+    buf.reserve(512 * num_geoms);
+
+    buf.resize(sizeof(int));
+    std::memcpy(buf.data(), &num_geoms, sizeof(int));
+
+    for (auto &geom_item : geom_map) {
+      auto geom = geom_item.second;
+      GeometryTransport::PackedGeom2D pg(rank, geom_item.first, geom);
+      buf.insert(buf.end(), pg.buf.begin(), pg.buf.end());
+    }
+  };
+
   template <typename T>
   PackedGeoms2D(int rank, std::map<int, std::shared_ptr<T>> &geom_map) {
     const int num_geoms = geom_map.size();
@@ -47,7 +61,7 @@ public:
 
     for (auto &geom_item : geom_map) {
       auto geom = geom_item.second;
-      GeometryTransport::PackedGeom2D pg(rank, geom_item.first, geom);
+      GeometryTransport::PackedGeom2D pg(rank, geom_item.first, geom.get());
       buf.insert(buf.end(), pg.buf.begin(), pg.buf.end());
     }
   };
@@ -68,7 +82,7 @@ public:
       auto geom = remote_geom->geom;
       const int rank = remote_geom->rank;
       const int gid = remote_geom->id;
-      GeometryTransport::PackedGeom2D pg(rank, gid, geom);
+      GeometryTransport::PackedGeom2D pg(rank, gid, geom.get());
       buf.insert(buf.end(), pg.buf.begin(), pg.buf.end());
     }
   };

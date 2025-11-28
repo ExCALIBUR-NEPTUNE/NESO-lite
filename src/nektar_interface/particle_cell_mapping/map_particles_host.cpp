@@ -104,18 +104,18 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
 
         auto t0_nektar_lookup = profile_timestamp();
         // get the elements that could contain the point
-        auto element_ids = graph->GetElementsContainingPoint(point);
+        auto element_ids = graph->GetElementsContainingPoint(point.get());
         // test the possible local geometry elements
 
         bool geom_found = false;
         // check the original nektar++ geoms
         for (auto &ex : element_ids) {
           if (ndim == 2) {
-            Geometry2DSharedPtr geom_2d = graph->GetGeometry2D(ex);
+            Geometry2D *geom_2d = graph->GetGeometry2D(ex);
             geom_found =
                 contains_point_2d(geom_2d, global_coord, local_coord, tol);
           } else if (ndim == 3) {
-            Geometry3DSharedPtr geom_3d = get_geometry_3d(graph, ex);
+            Geometry3D *geom_3d = get_geometry_3d(graph, ex);
             geom_found =
                 contains_point_3d(geom_3d, global_coord, local_coord, tol);
           }
@@ -140,7 +140,7 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_triangles) {
 
-              geom_found = contains_point_2d(remote_geom->geom, global_coord,
+              geom_found = contains_point_2d(remote_geom->geom.get(), global_coord,
                                              local_coord, tol);
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;
@@ -156,7 +156,7 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_quads) {
 
-              geom_found = contains_point_2d(remote_geom->geom, global_coord,
+              geom_found = contains_point_2d(remote_geom->geom.get(), global_coord,
                                              local_coord, tol);
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;
@@ -173,7 +173,7 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_geoms_3d) {
 
-              geom_found = contains_point_3d(remote_geom->geom, global_coord,
+              geom_found = contains_point_3d(remote_geom->geom.get(), global_coord,
                                              local_coord, tol);
               if (geom_found) {
                 (mpi_ranks)[1][rowx] = remote_geom->rank;

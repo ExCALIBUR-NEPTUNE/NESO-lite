@@ -15,8 +15,8 @@ std::mt19937 uniform_within_elements(
   }
 
   const int ndim = graph->GetMeshDimension();
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms_2d;
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
+  std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_2d;
+  std::map<int, Nektar::SpatialDomains::Geometry3D *> geoms_3d;
   int npart_total;
   int nelements;
 

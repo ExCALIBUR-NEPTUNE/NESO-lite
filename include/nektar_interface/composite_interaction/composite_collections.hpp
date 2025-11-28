@@ -111,11 +111,10 @@ public:
   SYCLTargetSharedPtr sycl_target;
 
   /// Map from composites to geometry objects held.
-  std::map<int, std::map<int, std::shared_ptr<Geometry>>>
-      map_composites_to_geoms;
+  std::map<int, std::map<int, Geometry *>> map_composites_to_geoms;
 
   // Map from geometry ids to geometry objects.
-  std::map<int, std::shared_ptr<Geometry>> map_geom_id_to_geoms;
+  std::map<int, Geometry *> map_geom_id_to_geoms;
 
   /// The composite transport instance.
   std::shared_ptr<CompositeTransport> composite_transport;

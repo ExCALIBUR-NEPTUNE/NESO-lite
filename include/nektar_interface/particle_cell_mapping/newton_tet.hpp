@@ -24,7 +24,7 @@ template <> struct mapping_host_device_types<MappingTetLinear3D> {
 struct MappingTetLinear3D : MappingNewtonIterationBase<MappingTetLinear3D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
-                           GeometrySharedPtr geom, DataHost *data_host,
+                           Geometry* geom, DataHost *data_host,
                            DataDevice *data_device) {
 
     const int num_vertices = 4;

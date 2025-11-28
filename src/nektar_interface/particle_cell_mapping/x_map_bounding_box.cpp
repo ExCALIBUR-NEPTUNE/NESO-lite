@@ -6,7 +6,7 @@ namespace NESO::BoundingBox {
 
 std::array<double, 6>
 get_bounding_box(Particles::SYCLTargetSharedPtr sycl_target,
-                 SD::GeometrySharedPtr geom,
+                 SD::Geometry* geom,
                  ParameterStoreSharedPtr parameter_store) {
 
   NESOASSERT(geom != nullptr, "Bad geometry object passed.");
@@ -56,7 +56,7 @@ get_bounding_box(Particles::SYCLTargetSharedPtr sycl_target,
 }
 
 std::array<double, 6>
-get_bounding_box(SD::GeometrySharedPtr geom,
+get_bounding_box(std::shared_ptr<SD::Geometry> geom,
                  ParameterStoreSharedPtr parameter_store) {
   auto sycl_target = std::make_shared<SYCLTarget>(0, MPI_COMM_SELF, 0);
   auto bb = get_bounding_box(sycl_target, geom, parameter_store);

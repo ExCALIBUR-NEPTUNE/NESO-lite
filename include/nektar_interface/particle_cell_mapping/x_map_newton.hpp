@@ -93,7 +93,7 @@ public:
    *  num_modes_factor)^(ndim)).
    */
   template <typename TYPE_GEOM>
-  XMapNewton(SYCLTargetSharedPtr sycl_target, std::shared_ptr<TYPE_GEOM> geom,
+  XMapNewton(SYCLTargetSharedPtr sycl_target, TYPE_GEOM* geom,
              const int num_modes_factor = 1)
       : newton_type(MappingNewtonIterationBase<NEWTON_TYPE>()),
         sycl_target(sycl_target),

@@ -337,28 +337,24 @@ void halo_exchange_send_sizes(MPI_Comm comm, const int num_send_ranks,
  */
 void halo_get_rank_to_geoms_2d(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
         &rank_geoms_2d_map_local) {
 
   const int comm_rank = particle_mesh_interface->comm_rank;
   /// map from geom id to geom of locally owned 2D objects.
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-      geoms_2d_local;
+  std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_2d_local;
   get_all_elements_2d(particle_mesh_interface->graph, geoms_2d_local);
 
   rank_geoms_2d_map_local[comm_rank] = geoms_2d_local;
   for (auto geom : particle_mesh_interface->remote_triangles) {
     const int rank = geom->rank;
     const int gid = geom->id;
-    rank_geoms_2d_map_local[rank][gid] =
-        std::dynamic_pointer_cast<Geometry2D>(geom->geom);
+    rank_geoms_2d_map_local[rank][gid] = geom->geom.get();
   }
   for (auto geom : particle_mesh_interface->remote_quads) {
     const int rank = geom->rank;
     const int gid = geom->id;
-    rank_geoms_2d_map_local[rank][gid] =
-        std::dynamic_pointer_cast<Geometry2D>(geom->geom);
+    rank_geoms_2d_map_local[rank][gid] = geom->geom.get();
   }
 }
 
@@ -373,22 +369,19 @@ void halo_get_rank_to_geoms_2d(
  */
 void halo_get_rank_to_geoms_3d(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry3D *>>
         &rank_geoms_3d_map_local) {
 
   const int comm_rank = particle_mesh_interface->comm_rank;
   /// map from geom id to geom of locally owned 3D objects.
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
-      geoms_3d_local;
+  std::map<int, Nektar::SpatialDomains::Geometry3D *> geoms_3d_local;
   get_all_elements_3d(particle_mesh_interface->graph, geoms_3d_local);
 
   rank_geoms_3d_map_local[comm_rank] = geoms_3d_local;
   for (auto geom : particle_mesh_interface->remote_geoms_3d) {
     const int rank = geom->rank;
     const int gid = geom->id;
-    rank_geoms_3d_map_local[rank][geom->id] =
-        std::dynamic_pointer_cast<Geometry3D>(geom->geom);
+    rank_geoms_3d_map_local[rank][geom->id] = geom->geom.get();
   }
 }
 
@@ -478,13 +471,11 @@ void extend_halos_fixed_offset(
    * objects may be shared between multiple ranks.
    */
 
-  std::map<int,
-           std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+  std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
       rank_geoms_2d_map_local;
   halo_get_rank_to_geoms_2d(particle_mesh_interface, rank_geoms_2d_map_local);
 
-  std::map<int,
-           std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+  std::map<int, std::map<int, Nektar::SpatialDomains::Geometry3D *>>
       rank_geoms_3d_map_local;
   halo_get_rank_to_geoms_3d(particle_mesh_interface, rank_geoms_3d_map_local);
 
@@ -546,11 +537,13 @@ void extend_halos_fixed_offset(
       if (geom->GetShapeType() == ShapeType::eTriangle) {
         rank_triangle_map[remote_rank].push_back(
             std::make_shared<RemoteGeom2D<TriGeom>>(
-                original_rank, gid, std::dynamic_pointer_cast<TriGeom>(geom)));
+                original_rank, gid,
+                std::make_shared<TriGeom>(*dynamic_cast<TriGeom *>(geom))));
       } else if (geom->GetShapeType() == ShapeType::eQuadrilateral) {
         rank_quad_map[remote_rank].push_back(
             std::make_shared<RemoteGeom2D<QuadGeom>>(
-                original_rank, gid, std::dynamic_pointer_cast<QuadGeom>(geom)));
+                original_rank, gid,
+                std::make_shared<QuadGeom>(*dynamic_cast<QuadGeom *>(geom))));
       }
     }
   }
@@ -561,8 +554,23 @@ void extend_halos_fixed_offset(
       const int original_rank = rank_gid.first;
       const int gid = rank_gid.second;
       const auto geom = rank_geoms_3d_map_local.at(original_rank).at(gid);
-      rank_geoms_3d_map[remote_rank].push_back(
-          std::make_shared<RemoteGeom3D>(original_rank, gid, geom));
+      if (geom->GetShapeType() == ShapeType::eTetrahedron) {
+        rank_geoms_3d_map[remote_rank].push_back(std::make_shared<RemoteGeom3D>(
+            original_rank, gid,
+            std::make_shared<TetGeom>(*dynamic_cast<TetGeom *>(geom))));
+      } else if (geom->GetShapeType() == ShapeType::ePrism) {
+        rank_geoms_3d_map[remote_rank].push_back(std::make_shared<RemoteGeom3D>(
+            original_rank, gid,
+            std::make_shared<PrismGeom>(*dynamic_cast<PrismGeom *>(geom))));
+      } else if (geom->GetShapeType() == ShapeType::ePyramid) {
+        rank_geoms_3d_map[remote_rank].push_back(std::make_shared<RemoteGeom3D>(
+            original_rank, gid,
+            std::make_shared<PyrGeom>(*dynamic_cast<PyrGeom *>(geom))));
+      } else if (geom->GetShapeType() == ShapeType::eHexahedron) {
+        rank_geoms_3d_map[remote_rank].push_back(std::make_shared<RemoteGeom3D>(
+            original_rank, gid,
+            std::make_shared<HexGeom>(*dynamic_cast<HexGeom *>(geom))));
+      }
     }
   }
 
@@ -597,7 +605,7 @@ void extend_halos_fixed_offset(
       for (auto remote_geom : rank_geoms_3d_map[remote_rank]) {
         const int original_rank = remote_geom->rank;
         const int gid = remote_geom->id;
-        const auto geom = remote_geom->geom;
+        const auto geom = remote_geom->geom.get();
         deconstruct_geoms_base_3d(original_rank, gid, geom,
                                   deconstructed_geoms[remote_rank]);
       }
@@ -627,7 +635,7 @@ void extend_halos_fixed_offset(
                      : !rank_geoms_3d_map_local.at(original_rank).count(gid);
       // Is this geom new?
       if (new_geom) {
-        rank_geoms_3d_map_local[original_rank][gid] = geom->geom;
+        rank_geoms_3d_map_local[original_rank][gid] = geom->geom.get();
         particle_mesh_interface->remote_geoms_3d.push_back(geom);
       }
     }

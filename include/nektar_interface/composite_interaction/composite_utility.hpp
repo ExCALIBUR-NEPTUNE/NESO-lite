@@ -14,7 +14,7 @@ namespace NESO {
  * @param[in] geom 1D geometry object.
  * @param[in, out] normal On return contains the normal vector.
  */
-void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry1D> geom,
+void get_normal_vector(SpatialDomains::Geometry1D* geom,
                        std::vector<REAL> &normal);
 
 /**
@@ -23,7 +23,7 @@ void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry1D> geom,
  * @param[in] geom 1D geometry object.
  * @param[in, out] normal On return contains the normal vector.
  */
-void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry2D> geom,
+void get_normal_vector(SpatialDomains::Geometry2D* geom,
                        std::vector<REAL> &normal);
 
 /**
@@ -32,7 +32,7 @@ void get_normal_vector(std::shared_ptr<SpatialDomains::Geometry2D> geom,
  * @param[in] geom Geometry object.
  * @param[in, out] average On return contains the average of the vertices.
  */
-void get_vertex_average(std::shared_ptr<SpatialDomains::Geometry> geom,
+void get_vertex_average(SpatialDomains::Geometry* geom,
                         std::vector<REAL> &average);
 
 } // namespace NESO

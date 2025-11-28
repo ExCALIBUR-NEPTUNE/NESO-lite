@@ -13,15 +13,13 @@ MapParticles2DRegular::MapParticles2DRegular(
 
   // filter out the non-regular elements
   // process locally owned elements
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-      geoms_local;
+  std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_local;
   {
     // Get the locally owned elements
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-        geoms_local_tmp;
+    std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_local_tmp;
     get_all_elements_2d(particle_mesh_interface->graph, geoms_local_tmp);
     for (auto &geom : geoms_local_tmp) {
-      if (geom.second->GetMetricInfo()->GetGtype() == eRegular) {
+      if (geom.second->CalcGeomType() == eRegular) {
         geoms_local[geom.first] = geom.second;
       }
     }
@@ -38,7 +36,7 @@ MapParticles2DRegular::MapParticles2DRegular(
                             geoms_remote_tmp);
     geoms_remote.reserve(geoms_remote_tmp.size());
     for (auto &geom : geoms_remote_tmp) {
-      if (geom->geom->GetMetricInfo()->GetGtype() == eRegular) {
+      if (geom->geom->CalcGeomType() == eRegular) {
         geoms_remote.push_back(geom);
       }
     }
