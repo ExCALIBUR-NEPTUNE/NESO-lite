@@ -5,8 +5,7 @@
 spack:
   # add package specs to the `specs` list
   specs:
-    - neso%oneapi ^nektar%oneapi^intel-oneapi-mkl%oneapi ^intel-oneapi-mpi%oneapi ^intel-oneapi-mkl%oneapi
-      ^py-cython%oneapi ^dpcpp
+    - neso%oneapi ^dpcpp ^nektar^intel-oneapi-mkl ^intel-oneapi-mpi
     - neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=omplibraryonly
     #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=ompaccelerated
     #- neso%gcc ^openblas  ^nektar ^adaptivecpp compilationflow=cudanvcxx
@@ -23,8 +22,7 @@ spack:
   concretizer:
     unify: when_possible
   repos:
-    - ./NESO-Spack
-    - $spack/var/spack/repos/builtin
+    neso: ./NESO-Spack
   packages:
     all:
       providers:
