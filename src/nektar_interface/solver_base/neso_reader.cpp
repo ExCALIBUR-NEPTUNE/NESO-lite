@@ -140,16 +140,7 @@ std::map<int, std::vector<int>> &NESOReader::get_boundary_regions() {
 }
 
 void NESOReader::read_species() {
-  NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
-
-  TiXmlHandle docHandle(&this->session->GetDocument());
-  TiXmlElement *species;
-
-  // Look for all data in SPECIES block.
-  species = docHandle.FirstChildElement("NEKTAR")
-                .FirstChildElement("NESO")
-                .FirstChildElement("SPECIES")
-                .Element();
+  TiXmlElement *species = this->session->GetElement("Nektar/Neso/Species");
   if (species) {
     TiXmlElement *specie = species->FirstChildElement();
 
@@ -1294,22 +1285,12 @@ void NESOReader::read_surface_reactions(TiXmlElement *vantage) {
 }
 
 void NESOReader::read_vantage() {
-  // Check we actually have a document loaded.
-  NESOASSERT(&this->session->GetDocument(), "No XML document loaded.");
-
-  TiXmlHandle docHandle(&this->session->GetDocument());
-
-  // Look for all data in VANTAGE block.
-  TiXmlElement *vantage = docHandle.FirstChildElement("NEKTAR")
-                              .FirstChildElement("NESO")
-                              .FirstChildElement("VANTAGE")
-                              .Element();
-
-  if (!vantage) {
-    return;
+  TiXmlElement *vantage =
+      this->session->GetElement("Nektar/Neso")->FirstChildElement("VANTAGE");
+  if (vantage) {
+    read_reactions(vantage);
+    read_surface_reactions(vantage);
   }
-  read_reactions(vantage);
-  read_surface_reactions(vantage);
 }
 
 void NESOReader::load_particle_species_parameter(const std::string &s,

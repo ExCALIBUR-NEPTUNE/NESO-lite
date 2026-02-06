@@ -41,12 +41,10 @@ protected:
         required_fld_names() {
     this->particles_enabled = false;
     this->neso_config = std::make_shared<NESOReader>(session);
-    if (session->DefinesElement("Nektar/Neso/Species")) {
-      this->neso_config->read_species();
-    }
-    if (session->DefinesElement("Nektar/Neso/VANTAGE")) {
-      this->neso_config->read_vantage();
-    }
+    
+    this->neso_config->read_species();
+    this->neso_config->read_vantage();
+    
     if (session->DefinesSolverInfo("PARTTYPE")) {
       NESOASSERT(this->neso_config->get_particle_species().size(),
                  "ParticleSystem specified in <INFO> but no kinetic species "
