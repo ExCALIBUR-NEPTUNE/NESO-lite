@@ -577,6 +577,8 @@ void NESOReader::read_particle_species_sources(
 
   // Scan through conditions section looking for sources.
   TiXmlElement *sources_xml = specie->FirstChildElement("SOURCES");
+  if(!sources_xml)
+    return;
   TiXmlElement *source = sources_xml->FirstChildElement();
 
   while (source) {
