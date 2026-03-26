@@ -7,6 +7,12 @@
             <B ID="3"> C[4] </B>
         </BOUNDARYREGION>
     </CONDITIONS>
+</NEKTAR>
+<NESO>
+    <FLUIDS>
+
+    </FLUIDS>
+
     <PARTICLES>
         <INFO>
             <I PROPERTY="PARTTYPE" VALUE="TestParticleSystem"/>
@@ -19,18 +25,22 @@
             <S ID="0" NAME="Argon">
                 <P> Mass = 40 </P>
                 <P> Charge = 1.0 </P>
-                <P> Number = 1000 </P>
-                <FUNCTION NAME = "InitialDistribution">
-                    <E VAR="n" VALUE="x+y"/>
-                </FUNCTION>
+                <INITIAL N="100">
+                    <E VAR="n" VALUE="sin(4*x)*sin(4*x)"/>
+                </INITIAL>
+                <SOURCE N="100">
+                    <E VAR="n" VALUE="exp((-(x-2-0.75*cos(150*t))*(x-2-0.75*cos(150*t))/(0.01))+(-(y-0.75*sin(150*t))*(y-0.75*sin(150*t))/(0.01)))"/>
+                </SOURCE>
+                <SINK>
+                    <E VAR="n" VALUE="exp((-(x-2-0.75*sin(150*t))*(x-2-0.75*sin(150*t))/(0.01))+(-(y+0.75*cos(150*t))*(y+0.75*cos(150*t))/(0.01)))"/>
+                </SINK>
             </S>
             <S ID="1" NAME="Neon">
                 <P> Mass = 20 </P>
                 <P> Charge = 1.0 </P>
-                <P> Number = 10000 </P>
-                <FUNCTION NAME = "InitialDistribution">
-                    <E VAR="n" VALUE="x-y"/>
-                </FUNCTION>
+                <INITIAL N="100">
+                    <E VAR="n" VALUE="sin(4*x)*sin(4*x)"/>
+                </INITIAL>
             </S>
         </SPECIES>
 
@@ -67,4 +77,4 @@
             </R>
         </REACTIONS>
     </PARTICLES>
-</NEKTAR>
+</NESO>

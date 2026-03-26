@@ -19,7 +19,9 @@ MapParticles2DRegular::MapParticles2DRegular(
     std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_local_tmp;
     get_all_elements_2d(particle_mesh_interface->graph, geoms_local_tmp);
     for (auto &geom : geoms_local_tmp) {
-      if (geom.second->CalcGeomType() == eRegular) {
+      if (geom.second->CalcGeomType() == eRegular ||
+          (geom.second->CalcGeomType() == eDeformed &&
+           geom.second->GetShapeType() == eTriangle)) {
         geoms_local[geom.first] = geom.second;
       }
     }
@@ -36,7 +38,9 @@ MapParticles2DRegular::MapParticles2DRegular(
                             geoms_remote_tmp);
     geoms_remote.reserve(geoms_remote_tmp.size());
     for (auto &geom : geoms_remote_tmp) {
-      if (geom->geom->CalcGeomType() == eRegular) {
+      if (geom->geom->CalcGeomType() == eRegular ||
+          (geom->geom->CalcGeomType() == eDeformed &&
+           geom->geom->GetShapeType() == eTriangle)) {
         geoms_remote.push_back(geom);
       }
     }

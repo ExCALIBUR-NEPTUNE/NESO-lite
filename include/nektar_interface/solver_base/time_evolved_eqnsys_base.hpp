@@ -42,6 +42,15 @@ protected:
     // No additional params yet
   };
 
+  /**
+   * @brief v_Solve
+   */
+  virtual void v_DoSolve() override {
+    EqnSysBase<NEKEQNSYS, PARTSYS>::v_DoSolve();
+
+    // No additional params yet
+  };
+
   /** @brief Check that the names of fields identified as time-evolving are
    * valid.
    *
