@@ -205,8 +205,8 @@ dist_within_extents(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
   }
 
   const int ndim = graph->GetMeshDimension();
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms_2d;
-  std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
+  std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_2d;
+  std::map<int, Nektar::SpatialDomains::Geometry3D *> geoms_3d;
   int nelements;
 
   if (ndim == 2) {
