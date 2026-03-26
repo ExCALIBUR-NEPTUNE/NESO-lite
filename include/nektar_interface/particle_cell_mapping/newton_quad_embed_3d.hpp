@@ -27,7 +27,7 @@ struct MappingQuadLinear2DEmbed3D
     : MappingNewtonIterationBase<MappingQuadLinear2DEmbed3D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
-                           GeometrySharedPtr geom, DataHost *data_host,
+                           Geometry* geom, DataHost *data_host,
                            DataDevice *data_device) {
 
     auto v0 = geom->GetVertex(0);

@@ -170,7 +170,7 @@ make_hex_geom(const int num_modes, T xmapx, U xmapy, V xmapz) {
     c[ex] = cx;
     e[ex] =
         std::make_shared<SpatialDomains::SegGeom>(ex, 3, vertices_array, cx);
-    e[ex]->GetGeomFactors();
+    e[ex]->GenGeomFactors();
     e[ex]->Setup();
   }
 
@@ -233,7 +233,7 @@ make_hex_geom(const int num_modes, T xmapx, U xmapy, V xmapz) {
         e.at(map_face_to_edges[fx][0]), e.at(map_face_to_edges[fx][1]),
         e.at(map_face_to_edges[fx][2]), e.at(map_face_to_edges[fx][3])};
     q[fx] = std::make_shared<SpatialDomains::QuadGeom>(fx, edges_array, cx);
-    q[fx]->GetGeomFactors();
+    q[fx]->GenGeomFactors();
     q[fx]->Setup();
   }
 
@@ -241,7 +241,7 @@ make_hex_geom(const int num_modes, T xmapx, U xmapy, V xmapz) {
                                                         q[3], q[4], q[5]};
 
   auto hex = std::make_shared<SpatialDomains::HexGeom>(0, quads);
-  hex->GetGeomFactors();
+  hex->GenGeomFactors();
   hex->Setup();
   NESOWARN(hex->GetMetricInfo()->IsValid(),
            "Created HexGeom has a negative Jacobian.");

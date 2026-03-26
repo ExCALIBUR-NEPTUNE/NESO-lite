@@ -36,7 +36,7 @@ void CompositeCollections::collect_cell(const INT cell) {
   int normal_stride = -1;
 
   auto lambda_push_normal = [&](auto geom_id, auto geom) {
-    get_normal_vector(geom, normal_tmp);
+    get_normal_vector(geom.get(), normal_tmp);
     h_normal_data.insert(h_normal_data.end(), normal_tmp.begin(),
                          normal_tmp.end());
     h_normal_ids.push_back(geom_id);
@@ -82,20 +82,17 @@ void CompositeCollections::collect_cell(const INT cell) {
     for (int gx = 0; gx < num_quads; gx++) {
       auto remote_geom = remote_quads[gx];
       auto geom = remote_geom->geom;
-      mapper_quads.write_data(this->sycl_target, geom, nullptr,
+      mapper_quads.write_data(this->sycl_target, geom.get(), nullptr,
                               h_buf_quads->ptr + gx);
-      LinePlaneIntersection lpi(geom);
+      LinePlaneIntersection lpi(geom.get());
       buf_lpi.push_back(lpi);
       const auto composite_id =
           this->composite_transport->get_composite_id(remote_geom->id);
       composite_ids[gx] = composite_id;
       geom_ids[gx] = remote_geom->id;
-      this->map_composites_to_geoms[composite_id][remote_geom->id] =
-          std::dynamic_pointer_cast<Geometry>(geom);
-      this->map_geom_id_to_geoms[remote_geom->id] =
-          std::dynamic_pointer_cast<Geometry>(geom);
-      lambda_push_normal(remote_geom->id,
-                         std::dynamic_pointer_cast<Geometry2D>(geom));
+      this->map_composites_to_geoms[composite_id][remote_geom->id] = geom.get();
+      this->map_geom_id_to_geoms[remote_geom->id] = geom.get();
+      lambda_push_normal(remote_geom->id, geom);
       h_group_ids_quads.push_back(
           this->map_composite_to_group.at(composite_id));
       lambda_push_num_modes(remote_geom->geom);
@@ -104,20 +101,17 @@ void CompositeCollections::collect_cell(const INT cell) {
     for (int gx = 0; gx < num_tris; gx++) {
       auto remote_geom = remote_tris[gx];
       auto geom = remote_geom->geom;
-      mapper_tris.write_data(this->sycl_target, geom, nullptr,
+      mapper_tris.write_data(this->sycl_target, geom.get(), nullptr,
                              h_buf_tris->ptr + gx);
-      LinePlaneIntersection lpi(geom);
+      LinePlaneIntersection lpi(geom.get());
       buf_lpi.push_back(lpi);
       const auto composite_id =
           this->composite_transport->get_composite_id(remote_geom->id);
       composite_ids[num_quads + gx] = composite_id;
       geom_ids[num_quads + gx] = remote_geom->id;
-      this->map_composites_to_geoms[composite_id][remote_geom->id] =
-          std::dynamic_pointer_cast<Geometry>(geom);
-      this->map_geom_id_to_geoms[remote_geom->id] =
-          std::dynamic_pointer_cast<Geometry>(geom);
-      lambda_push_normal(remote_geom->id,
-                         std::dynamic_pointer_cast<Geometry2D>(geom));
+      this->map_composites_to_geoms[composite_id][remote_geom->id] = geom.get();
+      this->map_geom_id_to_geoms[remote_geom->id] = geom.get();
+      lambda_push_normal(remote_geom->id, geom);
       h_group_ids_tris.push_back(this->map_composite_to_group.at(composite_id));
       lambda_push_num_modes(remote_geom->geom);
     }
@@ -189,15 +183,12 @@ void CompositeCollections::collect_cell(const INT cell) {
           this->composite_transport->get_composite_id(rs->id);
       composite_ids_segments.push_back(composite_id);
       geom_ids_segments.push_back(rs->id);
-      lli_segments.emplace_back(rs->geom);
+      lli_segments.emplace_back(rs->geom.get());
 
-      this->map_composites_to_geoms[composite_id][rs->id] =
-          std::dynamic_pointer_cast<Geometry>(rs->geom);
-      this->map_geom_id_to_geoms[rs->id] =
-          std::dynamic_pointer_cast<Geometry>(rs->geom);
+      this->map_composites_to_geoms[composite_id][rs->id] = rs->geom.get();
+      this->map_geom_id_to_geoms[rs->id] = rs->geom.get();
 
-      lambda_push_normal(rs->id,
-                         std::dynamic_pointer_cast<Geometry1D>(rs->geom));
+      lambda_push_normal(rs->id, rs->geom);
       h_group_ids_segments.push_back(
           this->map_composite_to_group.at(composite_id));
       lambda_push_num_modes(rs->geom);

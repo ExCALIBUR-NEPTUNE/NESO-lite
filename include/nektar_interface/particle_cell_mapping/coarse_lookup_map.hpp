@@ -102,7 +102,7 @@ public:
    */
   template <typename T, typename U>
   CoarseLookupMap(const int ndim, SYCLTargetSharedPtr sycl_target,
-                  std::map<int, std::shared_ptr<T>> geoms_local,
+                  std::map<int, T*> geoms_local,
                   std::vector<std::shared_ptr<U>> geoms_remote)
       : ndim(ndim), sycl_target(sycl_target) {
 

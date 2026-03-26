@@ -27,8 +27,8 @@ namespace NESO {
  */
 class GeometryContainer3D {
 protected:
-  inline GeometryTypes3D &classify(std::shared_ptr<Geometry3D> &geom) {
-    auto g_type = geom->GetMetricInfo()->GetGtype();
+  inline GeometryTypes3D &classify(Geometry3D* geom) {
+    auto g_type = geom->CalcGeomType();
     if (g_type == eRegular) {
       return this->regular;
     } else {
@@ -53,7 +53,7 @@ public:
    *
    * @param geom Geometry object to push onto correct container.
    */
-  inline void push_back(std::pair<int, std::shared_ptr<Geometry3D>> geom) {
+  inline void push_back(std::pair<int, Geometry3D*> geom) {
     auto &container = this->classify(geom.second);
     container.push_back(geom);
   }
@@ -63,7 +63,7 @@ public:
    * @param geom Geometry object to push onto correct container.
    */
   inline void push_back(std::shared_ptr<RemoteGeom3D> &geom) {
-    auto &container = this->classify(geom->geom);
+    auto &container = this->classify(geom->geom.get());
     container.push_back(geom);
   }
 

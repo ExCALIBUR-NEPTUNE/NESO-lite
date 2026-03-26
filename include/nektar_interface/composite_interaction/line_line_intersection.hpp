@@ -39,7 +39,7 @@ public:
    *
    * @param geom SegGeom to detect particle trajectories with.
    */
-  template <typename T> LineLineIntersection(std::shared_ptr<T> geom) {
+  template <typename T> LineLineIntersection(T* geom) {
     auto shape_type = geom->GetShapeType();
     NESOASSERT(shape_type == LibUtilities::eSegment,
                "LineLineIntersection not implemented for this shape type.");

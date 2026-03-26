@@ -61,9 +61,8 @@ template <typename SPECIALISATION> struct MappingNewtonIterationBase {
    *  compute device.
    *
    */
-  inline void write_data(SYCLTargetSharedPtr sycl_target,
-                         GeometrySharedPtr geom, DataHost *data_host,
-                         DataDevice *data_device) {
+  inline void write_data(SYCLTargetSharedPtr sycl_target, Geometry *geom,
+                         DataHost *data_host, DataDevice *data_device) {
     auto &underlying = static_cast<SPECIALISATION &>(*this);
     // Call the constructor on the host data type for the mapper.
     if constexpr (!std::is_same<DataHost, NullDataHost>::value) {

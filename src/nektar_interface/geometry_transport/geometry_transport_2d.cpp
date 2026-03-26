@@ -10,16 +10,14 @@ namespace NESO {
  */
 void get_all_elements_2d(
     Nektar::SpatialDomains::MeshGraphSharedPtr &graph,
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> &geoms) {
+    std::map<int, Nektar::SpatialDomains::Geometry2D *> &geoms) {
   geoms.clear();
 
-  for (auto &e : graph->GetAllTriGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry2D>(e.second);
+  for (const auto &e : graph->GetGeomMap<SpatialDomains::TriGeom>()) {
+    geoms[e.first] = e.second;
   }
-  for (auto &e : graph->GetAllQuadGeoms()) {
-    geoms[e.first] =
-        std::dynamic_pointer_cast<Nektar::SpatialDomains::Geometry2D>(e.second);
+  for (const auto &e : graph->GetGeomMap<SpatialDomains::QuadGeom>()) {
+    geoms[e.first] = e.second;
   }
 }
 
@@ -29,17 +27,16 @@ void get_all_elements_2d(
  * @param graph Nektar++ MeshGraph to return geometry object from.
  * @returns Local 2D geometry object.
  */
-Geometry2DSharedPtr
-get_element_2d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph) {
+Geometry2D *get_element_2d(Nektar::SpatialDomains::MeshGraphSharedPtr &graph) {
   {
-    auto geoms = graph->GetAllQuadGeoms();
+    auto geoms = graph->GetGeomMap<SpatialDomains::QuadGeom>();
     if (geoms.size() > 0) {
-      return std::dynamic_pointer_cast<Geometry2D>(geoms.begin()->second);
+      return (*geoms.begin()).second;
     }
   }
-  auto geoms = graph->GetAllTriGeoms();
+  auto geoms = graph->GetGeomMap<SpatialDomains::TriGeom>();
   NESOASSERT(geoms.size() > 0, "No local 2D geometry objects found.");
-  return std::dynamic_pointer_cast<Geometry2D>(geoms.begin()->second);
+  return (*geoms.begin()).second;
 }
 
 } // namespace NESO

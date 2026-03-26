@@ -41,8 +41,8 @@ public:
   int weight;
   /// A floating point weight for reference/testing.
   double weightf;
-  ~ClaimWeight(){};
-  ClaimWeight() : weight(0), weightf(0.0){};
+  ~ClaimWeight() {};
+  ClaimWeight() : weight(0), weightf(0.0) {};
 };
 
 /**
@@ -56,8 +56,8 @@ public:
   std::map<int64_t, ClaimWeight> claim_weights;
   /// Set of cells which claims were made for.
   std::set<int64_t> claim_cells;
-  ~LocalClaim(){};
-  LocalClaim(){};
+  ~LocalClaim() {};
+  LocalClaim() {};
   /**
    *  Claim a cell with passed weights.
    *
@@ -292,10 +292,11 @@ private:
    * to.
    */
   template <typename T>
-  inline int exchange_get_send_ranks(
-      std::map<int, std::shared_ptr<T>> &element_map, MHGeomMap &mh_geom_map,
-      std::map<int, std::map<int, std::shared_ptr<T>>> &rank_element_map,
-      std::vector<int> &send_ranks) {
+  inline int
+  exchange_get_send_ranks(std::map<int, T *> &element_map,
+                          MHGeomMap &mh_geom_map,
+                          std::map<int, std::map<int, T *>> &rank_element_map,
+                          std::vector<int> &send_ranks) {
 
     std::set<int> send_ranks_set;
     for (const INT &cell : this->unowned_mh_cells) {
@@ -395,7 +396,7 @@ private:
   template <typename T>
   inline void exchange_packed_2d(
       const int num_send_ranks,
-      std::map<int, std::map<int, std::shared_ptr<T>>> &rank_element_map,
+      std::map<int, std::map<int, T *>> &rank_element_map,
       std::vector<int> &send_ranks,
       std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
 
@@ -475,11 +476,11 @@ private:
    */
   template <typename T>
   inline void exchange_geometry_2d(
-      std::map<int, std::shared_ptr<T>> &element_map, MHGeomMap &mh_geom_map,
+      std::map<int, T *> &element_map, MHGeomMap &mh_geom_map,
       std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
 
     // map from mpi rank to element ids
-    std::map<int, std::map<int, std::shared_ptr<T>>> rank_element_map;
+    std::map<int, std::map<int, T *>> rank_element_map;
     // Set of remote ranks to send to
     std::vector<int> send_ranks;
     // Get the ranks to send to
@@ -493,10 +494,8 @@ private:
    *  Find a global bounding box around the computational domain.
    */
   inline void compute_bounding_box(
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-          &geoms_2d,
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
-          &geoms_3d) {
+      std::map<int, Nektar::SpatialDomains::Geometry2D *> &geoms_2d,
+      std::map<int, Nektar::SpatialDomains::Geometry3D *> &geoms_3d) {
 
     // Get a local and global bounding box for the mesh
     reset_bounding_box(this->bounding_box);
@@ -613,10 +612,23 @@ private:
    *  For each Nektar++ element claim cells based on bounding box.
    */
   template <typename T>
-  inline void claim_cells(std::map<int, std::shared_ptr<T>> &geoms,
-                          LocalClaim &local_claim, MHGeomMap &mh_geom_map) {
+  inline void claim_cells(std::map<int, T *> &geoms, LocalClaim &local_claim,
+                          MHGeomMap &mh_geom_map) {
 
     for (auto &e : geoms) {
+      bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
+                         mh_geom_map);
+    }
+  }
+
+  /**
+   *  For each Nektar++ element claim cells based on bounding box.
+   */
+  template <typename T>
+  inline void claim_cells(GeomMapView<T> &geoms, LocalClaim &local_claim,
+                          MHGeomMap &mh_geom_map) {
+
+    for (const auto &e : geoms) {
       bounding_box_claim(e.first, e.second, mesh_hierarchy, local_claim,
                          mh_geom_map);
     }
@@ -652,7 +664,8 @@ private:
   /**
    * Create halos on a 2D mesh.
    */
-  inline void create_halos_2d(TriGeomMap &triangles, QuadGeomMap &quads,
+  inline void create_halos_2d(std::map<int, TriGeom *> &triangles,
+                              std::map<int, QuadGeom *> &quads,
                               MHGeomMap &mh_geom_map_tri,
                               MHGeomMap &mh_geom_map_quad) {
 
@@ -673,7 +686,7 @@ private:
    */
   template <typename T>
   inline void exchange_2d_send_wrapper(
-      std::map<int, std::map<int, std::shared_ptr<T>>> &rank_element_map,
+      std::map<int, std::map<int, T *>> &rank_element_map,
       std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
     std::vector<int> send_ranks;
     send_ranks.reserve(rank_element_map.size());
@@ -689,17 +702,14 @@ private:
   /**
    * Create halos on a 3D mesh
    */
-  inline void create_halos_3d(
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-          &geoms_2d,
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
-          &geoms_3d,
-      MHGeomMap &mh_geom_map) {
+  inline void
+  create_halos_3d(std::map<int, Nektar::SpatialDomains::Geometry2D *> &geoms_2d,
+                  std::map<int, Nektar::SpatialDomains::Geometry3D *> &geoms_3d,
+                  MHGeomMap &mh_geom_map) {
 
     // exchange geometry objects between ranks
     // map from mpi rank to element ids
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry3D *>>
         rank_element_map;
     // Set of remote ranks to send to
     std::vector<int> send_ranks;
@@ -713,14 +723,12 @@ private:
     // the information required to reconstruct the 3D geoms on each remote rank
     std::map<int, std::vector<int>> deconstructed_geoms;
     std::vector<int> send_sizes(num_send_ranks);
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::TriGeom>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::TriGeom *>>
         rank_triangle_map;
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::QuadGeom>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::QuadGeom *>>
         rank_quad_map;
 
-    deconstuct_per_rank_geoms_3d(
+    deconstruct_per_rank_geoms_3d(
         comm_rank, geoms_2d, rank_element_map, num_send_ranks, send_ranks,
         send_sizes, deconstructed_geoms, rank_triangle_map, rank_quad_map);
 
@@ -734,24 +742,21 @@ private:
     // empty local element maps to free memory
     rank_triangle_map.clear();
     rank_quad_map.clear();
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
         rank_element_map_2d;
 
     // rebuild the 2D maps to recreate the 3D geoms
     for (const auto &geom : this->remote_triangles) {
       const int rank = geom->rank;
       const int gid = geom->id;
-      const auto geom_ptr = geom->geom;
-      rank_element_map_2d[rank][gid] =
-          std::dynamic_pointer_cast<SpatialDomains::Geometry2D>(geom_ptr);
+      const auto geom_ptr = geom->geom.get();
+      rank_element_map_2d[rank][gid] = geom_ptr;
     }
     for (const auto &geom : this->remote_quads) {
       const int rank = geom->rank;
       const int gid = geom->id;
-      const auto geom_ptr = geom->geom;
-      rank_element_map_2d[rank][gid] =
-          std::dynamic_pointer_cast<SpatialDomains::Geometry2D>(geom_ptr);
+      const auto geom_ptr = geom->geom.get();
+      rank_element_map_2d[rank][gid] = geom_ptr;
     }
 
     // exchange the 3D geometry information
@@ -878,10 +883,18 @@ public:
     MPICHK(MPI_Comm_rank(this->comm, &this->comm_rank));
     MPICHK(MPI_Comm_size(this->comm, &this->comm_size));
 
-    auto triangles = graph->GetAllTriGeoms();
-    auto quads = graph->GetAllQuadGeoms();
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>> geoms_2d;
-    std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms_3d;
+    std::map<int, SpatialDomains::TriGeom *> triangles;
+    std::map<int, SpatialDomains::QuadGeom *> quads;
+    auto triangles_view = graph->GetGeomMap<TriGeom>();
+    for (const auto &[id, g] : triangles_view) {
+      triangles[id] = g;
+    }
+    auto quads_view = graph->GetGeomMap<QuadGeom>();
+    for (const auto &[id, g] : quads_view) {
+      quads[id] = g;
+    }
+    std::map<int, SpatialDomains::Geometry2D *> geoms_2d;
+    std::map<int, SpatialDomains::Geometry3D *> geoms_3d;
     get_all_elements_2d(graph, geoms_2d);
     get_all_elements_3d(graph, geoms_3d);
 
@@ -1031,16 +1044,15 @@ public:
                "Expected 2 or 3 position components");
 
     // Find a local geometry object
-    GeometrySharedPtr geom;
+    Geometry *geom;
     if (this->ndim == 2) {
-      geom = std::dynamic_pointer_cast<Geometry>(get_element_2d(graph));
+      geom = get_element_2d(graph);
     } else {
-      geom = std::dynamic_pointer_cast<Geometry>(get_element_3d(graph));
+      geom = get_element_3d(graph);
     }
     NESOASSERT(geom != nullptr, "Geom pointer is null.");
     std::vector<REAL> tmp_point;
-    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(geom),
-                       tmp_point);
+    get_vertex_average(geom, tmp_point);
     NESOWARN(tmp_point.size() == this->ndim,
              "Miss-match in vertex average coordim and ndim.");
     for (int dimx = 0; dimx < this->ndim; dimx++) {

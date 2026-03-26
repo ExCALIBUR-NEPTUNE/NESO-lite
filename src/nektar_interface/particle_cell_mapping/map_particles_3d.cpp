@@ -33,10 +33,10 @@ MapParticles3D::MapParticles3D(
     // If we are putting all geoms through the generic 3D mapper then only
     // populate the deformed_non_linear container.
     {
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>> geoms;
+      std::map<int, Nektar::SpatialDomains::Geometry3D*> geoms;
       get_all_elements_3d(particle_mesh_interface->graph, geoms);
       for (auto gx : geoms) {
-        std::pair<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
+        std::pair<int, Nektar::SpatialDomains::Geometry3D*>
             tmp = {gx.first, gx.second};
         geometry_container_3d.deformed_non_linear.push_back(tmp);
       }
@@ -85,7 +85,7 @@ MapParticles3D::MapParticles3D(
   }
   if (geometry_container_3d.deformed_non_linear.size()) {
 
-    std::map<int, std::shared_ptr<Geometry3D>> local;
+    std::map<int, Geometry3D*> local;
     std::vector<std::shared_ptr<RemoteGeom3D>> remote;
     remote.reserve(
         geometry_container_3d.deformed_non_linear.tet.remote.size() +

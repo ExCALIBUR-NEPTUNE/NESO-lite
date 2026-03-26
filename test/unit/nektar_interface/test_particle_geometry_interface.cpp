@@ -39,7 +39,7 @@ private:
 public:
   std::array<double, 6> b;
 
-  ~DummyElement(){};
+  ~DummyElement() {};
   DummyElement(const double b0 = 0.0, const double b1 = 0.0,
                const double b2 = 0.0, const double b3 = 0.0,
                const double b4 = 0.0, const double b5 = 0.0) {
@@ -488,8 +488,7 @@ TEST(ParticleGeometryInterface, HaloExtend2D) {
   for (const INT cell : particle_mesh_interface->owned_mh_cells) {
     mh_cell_set.insert(cell);
   }
-  std::map<int,
-           std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+  std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
       rank_geoms_2d_map_local;
   std::map<INT, std::vector<std::pair<int, int>>> cells_to_rank_geoms;
   halo_get_rank_to_geoms_2d(particle_mesh_interface, rank_geoms_2d_map_local);

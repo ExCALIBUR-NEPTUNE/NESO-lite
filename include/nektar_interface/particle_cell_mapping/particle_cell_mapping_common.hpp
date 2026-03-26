@@ -42,12 +42,11 @@ namespace NESO {
  * if not contained.
  */
 template <typename T>
-inline double get_local_coords_2d(std::shared_ptr<T> geom,
+inline double get_local_coords_2d(T *geom,
                                   const Array<OneD, const NekDouble> &coords,
                                   Array<OneD, NekDouble> &Lcoords) {
 
-  NESOASSERT(geom->GetMetricInfo()->GetGtype() == eRegular,
-             "Not a regular geometry object");
+  NESOASSERT(geom->CalcGeomType() == eRegular, "Not a regular geometry object");
 
   int last_point_index = -1;
   if (geom->GetShapeType() == LibUtilities::eTriangle) {
@@ -146,10 +145,10 @@ inline double get_local_coords_2d(std::shared_ptr<T> geom,
  *  @param tol Input tolerance for geometry containing point.
  */
 template <typename T>
-inline bool
-contains_point_2d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
-                  Array<OneD, NekDouble> &local_coord, const NekDouble tol) {
-  if (geom->GetMetricInfo()->GetGtype() == eRegular) {
+inline bool contains_point_2d(T *geom, Array<OneD, NekDouble> &global_coord,
+                              Array<OneD, NekDouble> &local_coord,
+                              const NekDouble tol) {
+  if (geom->CalcGeomType() == eRegular) {
     const double dist = get_local_coords_2d(geom, global_coord, local_coord);
     bool contained = dist <= tol;
     return contained;
@@ -168,41 +167,41 @@ contains_point_2d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
  *  @param tol Input tolerance for geometry containing point.
  */
 template <typename T>
-inline bool
-contains_point_3d(std::shared_ptr<T> geom, Array<OneD, NekDouble> &global_coord,
-                  Array<OneD, NekDouble> &local_coord, const NekDouble tol) {
+inline bool contains_point_3d(T *geom, Array<OneD, NekDouble> &global_coord,
+                              Array<OneD, NekDouble> &local_coord,
+                              const NekDouble tol) {
   bool contained = geom->ContainsPoint(global_coord, local_coord, tol);
   return contained;
 }
 
-inline Geometry3DSharedPtr get_geometry_3d(MeshGraphSharedPtr graph,
-                                           const int geom_id) {
+inline Geometry3D *get_geometry_3d(MeshGraphSharedPtr graph,
+                                   const int geom_id) {
   {
-    auto geoms0 = graph->GetAllTetGeoms();
+    auto geoms0 = graph->GetGeomMap<TetGeom>();
     auto it0 = geoms0.find(geom_id);
     if (it0 != geoms0.end()) {
-      return it0->second;
+      return (*it0).second;
     }
   }
   {
-    auto geoms1 = graph->GetAllPyrGeoms();
+    auto geoms1 = graph->GetGeomMap<PyrGeom>();
     auto it1 = geoms1.find(geom_id);
     if (it1 != geoms1.end()) {
-      return it1->second;
+      return (*it1).second;
     }
   }
   {
-    auto geoms2 = graph->GetAllPrismGeoms();
+    auto geoms2 = graph->GetGeomMap<PrismGeom>();
     auto it2 = geoms2.find(geom_id);
     if (it2 != geoms2.end()) {
-      return it2->second;
+      return (*it2).second;
     }
   }
   {
-    auto geoms3 = graph->GetAllHexGeoms();
+    auto geoms3 = graph->GetGeomMap<HexGeom>();
     auto it3 = geoms3.find(geom_id);
     if (it3 != geoms3.end()) {
-      return it3->second;
+      return (*it3).second;
     }
   }
 
@@ -226,7 +225,7 @@ inline void count_geometry_types(std::vector<T> &geoms, int *count_regular,
                                  int *count_deformed) {
 
   for (auto &geom : geoms) {
-    auto t = geom->geom->GetMetricInfo()->GetGtype();
+    auto t = geom->geom->CalcGeomType();
     if (t == eRegular) {
       (*count_regular)++;
     } else if (t == eDeformed) {
@@ -252,7 +251,7 @@ inline void count_geometry_types(std::map<int, T> &geoms, int *count_regular,
                                  int *count_deformed) {
 
   for (auto &geom : geoms) {
-    auto t = geom.second->GetMetricInfo()->GetGtype();
+    auto t = geom.second->CalcGeomType();
     if (t == eRegular) {
       (*count_regular)++;
     } else if (t == eDeformed) {

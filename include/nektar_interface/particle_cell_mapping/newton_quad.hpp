@@ -25,7 +25,7 @@ template <> struct mapping_host_device_types<MappingQuadLinear2D> {
 struct MappingQuadLinear2D : MappingNewtonIterationBase<MappingQuadLinear2D> {
 
   inline void write_data_v([[maybe_unused]] SYCLTargetSharedPtr sycl_target,
-                           GeometrySharedPtr geom, DataHost *data_host,
+                           Geometry* geom, DataHost *data_host,
                            DataDevice *data_device) {
 
     auto v0 = geom->GetVertex(0);

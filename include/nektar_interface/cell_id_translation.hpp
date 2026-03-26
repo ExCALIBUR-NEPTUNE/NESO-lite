@@ -37,7 +37,7 @@ private:
   int shift;
 
   template <typename T>
-  inline void construct_maps(std::map<int, std::shared_ptr<T>> &geoms) {
+  inline void construct_maps(std::map<int, T*> &geoms) {
     const int nelements = geoms.size();
     int id_min = std::numeric_limits<int>::max();
     int id_max = std::numeric_limits<int>::lowest();
@@ -75,7 +75,7 @@ private:
   }
 
 public:
-  ~CellIDTranslation(){};
+  ~CellIDTranslation() {};
 
   /// The sycl target this map exists on.
   SYCLTargetSharedPtr sycl_target;
@@ -108,13 +108,11 @@ public:
     auto graph = this->particle_mesh_interface->graph;
     const int ndim = particle_mesh_interface->ndim;
     if (ndim == 2) {
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>
-          geoms_2d;
+      std::map<int, Nektar::SpatialDomains::Geometry2D *> geoms_2d;
       get_all_elements_2d(graph, geoms_2d);
       this->construct_maps(geoms_2d);
     } else if (ndim == 3) {
-      std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>
-          geoms_3d;
+      std::map<int, Nektar::SpatialDomains::Geometry3D *> geoms_3d;
       get_all_elements_3d(graph, geoms_3d);
       this->construct_maps(geoms_3d);
     } else {

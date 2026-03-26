@@ -12,7 +12,7 @@ NektarCartesianPeriodic::NektarCartesianPeriodic(
 
   NESOASSERT(this->ndim <= 3, "bad mesh ndim");
 
-  auto verticies = graph->GetAllPointGeoms();
+  auto vertices = graph->GetGeomMap<PointGeom>();
 
   double origin[3];
   double extent[3];
@@ -21,7 +21,7 @@ NektarCartesianPeriodic::NektarCartesianPeriodic(
     extent[dimx] = std::numeric_limits<double>::min();
   }
 
-  for (auto &vx : verticies) {
+  for (const auto &vx : vertices) {
     Nektar::NekDouble x, y, z;
     vx.second->GetCoords(x, y, z);
     origin[0] = std::min(origin[0], x);

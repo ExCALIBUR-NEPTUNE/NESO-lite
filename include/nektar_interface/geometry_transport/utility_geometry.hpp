@@ -11,7 +11,7 @@ namespace NESO {
  * @returns True if the geometry object is linear.
  */
 template <typename GEOM_TYPE>
-inline bool geometry_is_linear(std::shared_ptr<GEOM_TYPE> geom) {
+inline bool geometry_is_linear(GEOM_TYPE* geom) {
   const auto xmap = geom->GetXmap();
   const int ndim = xmap->GetBase().size();
   for (int dimx = 0; dimx < ndim; dimx++) {

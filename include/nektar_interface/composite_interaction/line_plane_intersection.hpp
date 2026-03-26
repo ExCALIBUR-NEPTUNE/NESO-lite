@@ -49,17 +49,15 @@ public:
    *
    * @param geom 2D linear sided Nektar++ geometry object.
    */
-  template <typename T> LinePlaneIntersection(std::shared_ptr<T> geom) {
+  template <typename T> LinePlaneIntersection(T *geom) {
     std::vector<REAL> normal;
-    get_normal_vector(
-        std::static_pointer_cast<SpatialDomains::Geometry2D>(geom), normal);
+    get_normal_vector(geom, normal);
     this->normal0 = normal.at(0);
     this->normal1 = normal.at(1);
     this->normal2 = normal.at(2);
 
     // The average of the vertices is a point in the plane.
-    get_vertex_average(std::static_pointer_cast<SpatialDomains::Geometry>(geom),
-                       normal);
+    get_vertex_average(geom, normal);
 
     this->point0 = normal.at(0);
     this->point1 = normal.at(1);

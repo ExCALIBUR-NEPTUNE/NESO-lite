@@ -253,8 +253,7 @@ inline void halo_rebuild_rank_element_map(
  */
 void halo_get_rank_to_geoms_2d(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
         &rank_geoms_2d_map_local);
 
 /**
@@ -268,8 +267,7 @@ void halo_get_rank_to_geoms_2d(
  */
 void halo_get_rank_to_geoms_3d(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry3D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry3D *>>
         &rank_geoms_3d_map_local);
 
 /**
@@ -287,7 +285,7 @@ void halo_get_rank_to_geoms_3d(
 template <typename T>
 inline void halo_get_cells_to_geoms_map(
     ParticleMeshInterfaceSharedPtr particle_mesh_interface,
-    std::map<int, std::map<int, std::shared_ptr<T>>> &rank_geoms_map_local,
+    std::map<int, std::map<int, T *>> &rank_geoms_map_local,
     std::set<INT> &send_cells_set,
     std::map<INT, std::vector<std::pair<int, int>>> &cells_to_geoms) {
   const auto mesh_hierarchy = particle_mesh_interface->mesh_hierarchy;
@@ -319,8 +317,7 @@ inline void halo_get_cells_to_geoms_map(
  */
 template <typename T>
 inline void halo_unpack_2D_geoms(
-    std::map<int,
-             std::map<int, std::shared_ptr<Nektar::SpatialDomains::Geometry2D>>>
+    std::map<int, std::map<int, Nektar::SpatialDomains::Geometry2D *>>
         &rank_geoms_2d_map_local,
     std::vector<std::shared_ptr<RemoteGeom2D<T>>> &tmp_remote_geoms,
     std::vector<std::shared_ptr<RemoteGeom2D<T>>> &output_container) {
@@ -333,8 +330,7 @@ inline void halo_unpack_2D_geoms(
         new_rank ? true : !rank_geoms_2d_map_local[rank].count(gid);
     if (new_geom) {
       output_container.push_back(remote_geom);
-      rank_geoms_2d_map_local[rank][gid] =
-          std::dynamic_pointer_cast<Geometry2D>(geom);
+      rank_geoms_2d_map_local[rank][gid] = geom.get();
     }
   }
 }
