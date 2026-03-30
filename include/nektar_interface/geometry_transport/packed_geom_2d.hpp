@@ -258,11 +258,14 @@ public:
     }
     std::shared_ptr<T> geom =
         std::make_shared<T>(this->id, edge_array, this->curve.get());
-    LibUtilities::PointsKeyVector p = geom->GetXmap()->GetPointsKeys();
-    geom->GenGeomFactors(p);
+
     geom->Setup();
 
     auto remote_geom = std::make_shared<RemoteGeom2D<T>>(rank, local_id, geom);
+    remote_geom->edges = std::move(this->edges);
+    remote_geom->curve = std::move(this->curve);
+    remote_geom->curve_points = std::move(this->curve_points);
+    remote_geom->vertices = std::move(this->vertices);
     return remote_geom;
   }
 };

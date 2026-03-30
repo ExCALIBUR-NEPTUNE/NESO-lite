@@ -82,7 +82,22 @@ public:
    *  @param geom Shared pointer to local copy of the geometry object.
    */
   RemoteGeom(int rank, int id, T *geom) : rank(rank), id(id) {
-    this->geom = std::make_shared<T>(*dynamic_cast<T *>(geom));
+    if constexpr (std::is_same_v<T, SegGeom>) {
+      if (geom->GetShapeType() == LibUtilities::ShapeType::eSegment) {
+        this->geom = std::make_shared<SegGeom>(*dynamic_cast<SegGeom *>(geom));
+      }
+    } else if constexpr (std::is_same_v<T, Geometry>) {
+      if (geom->GetShapeType() == LibUtilities::ShapeType::eSegment) {
+        this->geom = std::make_shared<SegGeom>(*dynamic_cast<SegGeom *>(geom));
+      } else if (geom->GetShapeType() == LibUtilities::ShapeType::eTriangle) {
+        this->geom = std::make_shared<TriGeom>(*dynamic_cast<TriGeom *>(geom));
+
+      } else if (geom->GetShapeType() ==
+                 LibUtilities::ShapeType::eQuadrilateral) {
+        this->geom =
+            std::make_shared<QuadGeom>(*dynamic_cast<QuadGeom *>(geom));
+      }
+    }
   };
 
   /**
@@ -329,8 +344,6 @@ public:
       ASSERTL0(gs.n_points == -1, "unpacking routine did not expect a curve");
       auto g =
           std::make_shared<SpatialDomains::SegGeom>(gid, coordim, point_arr);
-      LibUtilities::PointsKeyVector p = g->GetXmap()->GetPointsKeys();
-      g->GenGeomFactors(p);
       g->Setup();
       return g;
     };
@@ -365,8 +378,6 @@ public:
         g = std::dynamic_pointer_cast<Geometry2D>(
             std::make_shared<QuadGeom>(gid, quad_edges));
       }
-      LibUtilities::PointsKeyVector p = g->GetXmap()->GetPointsKeys();
-      g->GenGeomFactors(p);
       g->Setup();
       return g;
     };
@@ -415,8 +426,6 @@ public:
         g = std::dynamic_pointer_cast<Geometry3D>(
             std::make_shared<HexGeom>(gid, tmp_faces));
       }
-      LibUtilities::PointsKeyVector p = g->GetXmap()->GetPointsKeys();
-      g->GenGeomFactors(p);
       g->Setup();
       return g;
     };
@@ -430,8 +439,6 @@ public:
       this->geom =
           std::dynamic_pointer_cast<T>(lambda_pop_polyhedron(shape_type));
     }
-    LibUtilities::PointsKeyVector p = geom->GetXmap()->GetPointsKeys();
-    this->geom->GenGeomFactors(p);
     this->geom->Setup();
 
     NESOASSERT(offset == num_bytes, "Not all data was deserialised");

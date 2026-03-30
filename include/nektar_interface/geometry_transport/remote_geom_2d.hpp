@@ -18,6 +18,10 @@ public:
   int rank = -1;
   /// The geometry id on the remote rank.
   int id = -1;
+  std::vector<std::shared_ptr<SpatialDomains::SegGeom>> edges;
+  std::vector<std::shared_ptr<SpatialDomains::PointGeom>> vertices;
+  std::shared_ptr<SpatialDomains::Curve> curve;
+  std::vector<std::shared_ptr<SpatialDomains::PointGeom>> curve_points;
   /// A local copy of the geometry object.
   std::shared_ptr<T> geom;
   /**

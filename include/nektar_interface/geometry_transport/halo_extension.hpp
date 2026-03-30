@@ -215,7 +215,7 @@ inline void halo_exchange_geoms_2d(
   for (int rankx = 0; rankx < num_recv_ranks; rankx++) {
     PackedGeoms2D remote_packed_geoms(
         recv_buffer.data() + rankx * max_recv_size, recv_sizes[rankx]);
-    remote_packed_geoms.unpack(output_container);
+    remote_packed_geoms.unpack<T>(output_container);
   }
 
   // wait for the sends to complete
