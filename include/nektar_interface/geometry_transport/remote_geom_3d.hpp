@@ -19,6 +19,7 @@ public:
   std::shared_ptr<Nektar::SpatialDomains::Geometry3D> geom;
   /// The underlying Nektar++ shape type
   LibUtilities::ShapeType shape_type;
+  std::vector<std::shared_ptr<Geometry2D>> faces;
 
   /**
    * Wrapper around remote 3D geometry object.

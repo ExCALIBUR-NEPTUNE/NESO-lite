@@ -53,13 +53,19 @@ void CompositeTransport::get_geometry(
         if (shape_type == LibUtilities::eTriangle) {
           auto ptr = std::dynamic_pointer_cast<TriGeom>(gx.geom);
           NESOASSERT(ptr.get() != nullptr, "bad cast of ptr to TriGeom");
-          remote_tris.push_back(
-              std::make_shared<RemoteGeom2D<TriGeom>>(gx.rank, gx.id, ptr));
+          auto rem_geom =
+              std::make_shared<RemoteGeom2D<TriGeom>>(gx.rank, gx.id, ptr);
+          rem_geom->edges = gx.edges;
+          rem_geom->vertices = gx.vertices;
+          remote_tris.push_back(rem_geom);
         } else {
           auto ptr = std::dynamic_pointer_cast<QuadGeom>(gx.geom);
           NESOASSERT(ptr.get() != nullptr, "bad cast of ptr to QuadGeom");
-          remote_quads.push_back(
-              std::make_shared<RemoteGeom2D<QuadGeom>>(gx.rank, gx.id, ptr));
+          auto rem_geom =
+              std::make_shared<RemoteGeom2D<QuadGeom>>(gx.rank, gx.id, ptr);
+          rem_geom->edges = gx.edges;
+          rem_geom->vertices = gx.vertices;
+          remote_quads.push_back(rem_geom);
         }
       }
     } else if (this->ndim == 2) {
@@ -162,7 +168,7 @@ CompositeTransport::CompositeTransport(
   const int mask = std::numeric_limits<int>::min();
 
   for (auto geom_pair : geometry_composites) {
-    SpatialDomains::Geometry* geom = geom_pair.first;
+    SpatialDomains::Geometry *geom = geom_pair.first;
     const int composite = geom_pair.second;
 
     // find all mesh hierarchy cells the geom intersects with

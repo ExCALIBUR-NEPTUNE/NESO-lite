@@ -105,7 +105,7 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
 
   switch (shape_type) {
   case ShapeType::eHexahedron: {
-    std::vector<std::shared_ptr<QuadGeom>> faces(6);
+    std::vector<std::shared_ptr<Geometry2D>> faces(6);
     std::array<QuadGeom *, 6> tmp_faces;
     for (int facex = 0; facex < 6; facex++) {
       const int face_id = *ptr++;
@@ -114,16 +114,17 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
       ASSERTL0(face_ptr->GetGlobalID() == face_id, "Element id missmatch.");
       ASSERTL0(face_ptr->GetShapeType() == ShapeType::eQuadrilateral,
                "Element type missmatch.");
-      faces[facex] =
+      auto face =
           std::make_shared<QuadGeom>(*dynamic_cast<QuadGeom *>(face_ptr));
-      tmp_faces[facex] = faces[facex].get();
+      faces[facex] = face;
+      tmp_faces[facex] = face.get();
     }
     auto new_geom = std::make_shared<HexGeom>(geom_id, tmp_faces);
-    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
-    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
-    return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    auto rem_geom = std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    rem_geom->faces = std::move(faces);
+    return rem_geom;
   }
   case ShapeType::ePrism: {
     std::vector<std::shared_ptr<Geometry2D>> faces(5);
@@ -143,11 +144,11 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
       tmp_faces[facex] = faces[facex].get();
     }
     auto new_geom = std::make_shared<PrismGeom>(geom_id, tmp_faces);
-    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
-    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
-    return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    auto rem_geom = std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    rem_geom->faces = std::move(faces);
+    return rem_geom;
   }
   case ShapeType::ePyramid: {
     std::vector<std::shared_ptr<Geometry2D>> faces(5);
@@ -166,14 +167,14 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
       tmp_faces[facex] = faces[facex].get();
     }
     auto new_geom = std::make_shared<PyrGeom>(geom_id, tmp_faces);
-    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
-    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
-    return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    auto rem_geom = std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    rem_geom->faces = std::move(faces);
+    return rem_geom;
   }
   case ShapeType::eTetrahedron: {
-    std::vector<std::shared_ptr<TriGeom>> faces(4);
+    std::vector<std::shared_ptr<Geometry2D>> faces(4);
     std::array<TriGeom *, 4> tmp_faces;
     for (int facex = 0; facex < 4; facex++) {
       const int face_id = *ptr++;
@@ -182,16 +183,16 @@ std::shared_ptr<RemoteGeom3D> reconstruct_geom_3d(
       ASSERTL0(face_ptr->GetGlobalID() == face_id, "Element id missmatch.");
       ASSERTL0(face_ptr->GetShapeType() == ShapeType::eTriangle,
                "Element type missmatch.");
-      faces[facex] =
-          std::make_shared<TriGeom>(*dynamic_cast<TriGeom *>(face_ptr));
-      tmp_faces[facex] = faces[facex].get();
+      auto face = std::make_shared<TriGeom>(*dynamic_cast<TriGeom *>(face_ptr));
+      faces[facex] = face;
+      tmp_faces[facex] = face.get();
     }
     auto new_geom = std::make_shared<TetGeom>(geom_id, tmp_faces);
-    LibUtilities::PointsKeyVector p = new_geom->GetXmap()->GetPointsKeys();
-    new_geom->GenGeomFactors(p);
     new_geom->Setup();
     *base_ptr = ptr;
-    return std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    auto rem_geom = std::make_shared<RemoteGeom3D>(rank, geom_id, new_geom);
+    rem_geom->faces = std::move(faces);
+    return rem_geom;
   }
   default: {
     return nullptr;
