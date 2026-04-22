@@ -75,10 +75,11 @@ void CompositeTransport::get_geometry(
                    "Expect only 1D edge composites");
         auto ptr = std::dynamic_pointer_cast<SegGeom>(gx.geom);
         NESOASSERT(ptr.get() != nullptr, "bad cast of ptr to SegGeom");
-        remote_segments.push_back(
-            std::make_shared<
+        auto rem_geom = std::make_shared<
                 GeometryTransport::RemoteGeom<SpatialDomains::SegGeom>>(
-                gx.rank, gx.id, ptr.get()));
+                gx.rank, gx.id, ptr.get());
+        rem_geom->vertices = gx.vertices;
+        remote_segments.push_back(rem_geom);
       }
     } else {
       NESOASSERT(false, "not implemented in 1D");
