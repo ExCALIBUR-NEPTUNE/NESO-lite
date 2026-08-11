@@ -143,6 +143,7 @@ protected:
       return this->evaluate_inner(event_stack, evaluation_type, particle_group,
                                   k_ref_positions, k_output, sym, component);
     }
+    particle_sub_group->create_if_required();
 
     const ShapeType shape_type = evaluation_type.get_shape_type();
     const int cells_iterset_size = this->map_shape_to_count.at(shape_type);
@@ -150,48 +151,81 @@ protected:
       return;
     }
     const auto loop_data = this->get_loop_data(evaluation_type);
-    const auto h_cells_iterset =
-        this->map_shape_to_dh_cells.at(shape_type)->h_buffer.ptr;
+    const auto k_cells_iterset =
+        this->map_shape_to_dh_cells.at(shape_type)->d_buffer.ptr;
+    auto mpi_rank_dat = particle_group->mpi_rank_dat;
+
+    const int k_component = component;
+    auto selection = particle_sub_group->get_selection();
+    auto k_map_cells_to_particles = selection.d_map_cells_to_particles;
+    const auto d_npart_cell = selection.d_npart_cell;
 
     const auto max_total_nummodes_sum =
         PrivateBasisEvaluateBaseKernel::sum_max_modes(loop_data);
     auto local_space =
         std::make_shared<LocalMemoryBlock<REAL>>(max_total_nummodes_sum);
 
-    const int k_component = component;
+    const std::size_t default_local_size =
+        this->sycl_target->parameters
+            ->template get<SizeTParameter>("LOOP_LOCAL_SIZE")
+            ->value;
+    const size_t local_size = this->sycl_target->get_num_local_work_items(
+        static_cast<size_t>(max_total_nummodes_sum) * sizeof(REAL),
+        default_local_size);
 
-    for (std::size_t cx = 0; cx < cells_iterset_size; cx++) {
-      const int cellx = h_cells_iterset[cx];
-      particle_loop(
-          "FunctionEvaluateBasis::ParticleSubGroup", particle_sub_group,
-          [=](auto LOCAL_SPACE, auto REF_POSITIONS, auto OUTPUT) {
+    const int local_mem_num_items = max_total_nummodes_sum * local_size;
+    const size_t outer_size =
+        get_particle_loop_global_size(mpi_rank_dat, local_size);
+
+    sycl::range<2> cell_iterset_range{static_cast<size_t>(cells_iterset_size),
+                                      static_cast<size_t>(outer_size)};
+    sycl::range<2> local_iterset{1, local_size};
+
+    event_stack.push(this->sycl_target->queue.submit([&](sycl::handler &cgh) {
+      sycl::local_accessor<REAL, 1> local_mem(
+          sycl::range<1>(local_mem_num_items), cgh);
+
+      cgh.parallel_for<>(
+          this->sycl_target->device_limits.validate_nd_range(
+              sycl::nd_range<2>(cell_iterset_range, local_iterset)),
+          [=](sycl::nd_item<2> idx) {
+            const int iter_cell = idx.get_global_id(0);
+            const int idx_local = idx.get_local_id(1);
+
+            const INT cellx = k_cells_iterset[iter_cell];
+            const INT layerx = idx.get_global_id(1);
             ExpansionLooping::JacobiExpansionLoopingInterface<EVALUATE_TYPE>
                 loop_type{};
 
-            // Get the number of modes in x and y
-            const int nummodes = loop_data.nummodes[cellx];
-            REAL *dofs =
-                &loop_data.global_coeffs[loop_data.coeffs_offsets[cellx]];
-            REAL *local_space_0, *local_space_1, *local_space_2;
+            REAL *local_mem_ptr = static_cast<REAL *>(&local_mem[0]) +
+                                  idx_local * max_total_nummodes_sum;
 
-            REAL xi[3];
-            PrivateBasisEvaluateBaseKernel::extract_ref_positions_dat(
-                loop_data.ndim, REF_POSITIONS, xi);
-            PrivateBasisEvaluateBaseKernel::prepare_per_dim_basis(
-                nummodes, loop_data, loop_type, xi, LOCAL_SPACE.data(),
-                &local_space_0, &local_space_1, &local_space_2);
+            if (layerx < d_npart_cell[cellx]) {
+              const int layer = static_cast<int>(
+                  k_map_cells_to_particles.map_loop_layer_to_layer(cellx,
+                                                                   layerx));
+              // Get the number of modes in x and y
+              const int nummodes = loop_data.nummodes[cellx];
+              REAL *dofs =
+                  &loop_data.global_coeffs[loop_data.coeffs_offsets[cellx]];
+              REAL *local_space_0, *local_space_1, *local_space_2;
 
-            REAL evaluation = 0.0;
-            loop_type.loop_evaluate(nummodes, dofs, local_space_0,
-                                    local_space_1, local_space_2, &evaluation);
+              REAL xi[3];
+              PrivateBasisEvaluateBaseKernel::extract_ref_positions_ptr(
+                  loop_data.ndim, k_ref_positions, cellx, layer, xi);
+              PrivateBasisEvaluateBaseKernel::prepare_per_dim_basis(
+                  nummodes, loop_data, loop_type, xi, local_mem_ptr,
+                  &local_space_0, &local_space_1, &local_space_2);
 
-            OUTPUT.at(k_component) = evaluation;
-          },
-          Access::write(local_space),
-          Access::read(Sym<REAL>("NESO_REFERENCE_POSITIONS")),
-          Access::write(sym))
-          ->execute(cellx);
-    }
+              REAL evaluation = 0.0;
+              loop_type.loop_evaluate(nummodes, dofs, local_space_0,
+                                      local_space_1, local_space_2,
+                                      &evaluation);
+
+              k_output[cellx][k_component][layer] = evaluation;
+            }
+          });
+    }));
 
     return;
   }
@@ -233,6 +267,10 @@ public:
     static_assert((std::is_same_v<GROUP_TYPE, ParticleGroup> ||
                    std::is_same_v<GROUP_TYPE, ParticleSubGroup>),
                   "Expected ParticleGroup or ParticleSubGroup");
+
+    auto r0 = this->sycl_target->profile_map.start_region(
+        "FunctionEvaluateBasis", "evaluate");
+
     const int num_global_coeffs = global_coeffs.size();
     this->dh_global_coeffs.realloc_no_copy(num_global_coeffs);
     for (int px = 0; px < num_global_coeffs; px++) {
@@ -272,6 +310,8 @@ public:
         Access::read(get_particle_group(particle_group)
                          ->get_dat(Sym<REAL>("NESO_REFERENCE_POSITIONS"))),
         k_ref_positions);
+
+    this->sycl_target->profile_map.end_region(r0);
   }
 };
 

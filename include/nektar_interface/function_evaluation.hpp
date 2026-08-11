@@ -41,7 +41,7 @@ private:
   std::shared_ptr<FunctionEvaluateBasis<T>> function_evaluate_basis;
 
 public:
-  ~FieldEvaluate(){};
+  ~FieldEvaluate() {};
 
   /**
    *  Construct new evaluation object. FieldEvaluate allows a Nektar++ field
@@ -62,18 +62,14 @@ public:
         sycl_target(particle_group->sycl_target),
         cell_id_translation(cell_id_translation), derivative(derivative) {
 
-    if (this->derivative) {
-      auto particle_mesh_interface =
-          std::dynamic_pointer_cast<ParticleMeshInterface>(
-              particle_group->domain->mesh);
-      NESOASSERT((particle_mesh_interface->ndim == 2) ||
-                     (particle_mesh_interface->ndim == 3),
-                 "Derivative evaluation supported in 2D and 3D only.");
+    auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
+        particle_group->domain->mesh);
+    if (this->derivative || field->GetPhysState()) {
+      NESOASSERT((mesh->ndim == 2) || (mesh->ndim == 3),
+                 "Bary evaluation supported in 2D and 3D only.");
       this->bary_evaluate_base = std::make_shared<BaryEvaluateBase<T>>(
-          field, particle_mesh_interface, cell_id_translation);
+          field, mesh, cell_id_translation);
     } else {
-      auto mesh = std::dynamic_pointer_cast<ParticleMeshInterface>(
-          particle_group->domain->mesh);
       this->function_evaluate_basis =
           std::make_shared<FunctionEvaluateBasis<T>>(field, mesh,
                                                      cell_id_translation);
@@ -95,7 +91,7 @@ public:
    */
   template <typename GROUP_TYPE, typename U>
   inline void evaluate(std::shared_ptr<GROUP_TYPE> particle_sub_group,
-                       Sym<U> sym) {
+                       Sym<U> sym, const int component = 0) {
 
     if (this->derivative) {
       const auto ndim = this->particle_group->domain->mesh->get_ndim();
@@ -125,6 +121,14 @@ public:
       this->bary_evaluate_base->evaluate(particle_sub_group, syms, components,
                                          deriv_physvals_ptrs);
 
+    } else if (this->field->GetPhysState()) {
+      Array<OneD, NekDouble> global_physvals = this->field->GetPhys();
+      std::vector<Array<OneD, NekDouble> *> physval = {&global_physvals};
+      std::vector<Sym<U>> syms = {sym};
+      std::vector<int> components = {component};
+      this->bary_evaluate_base->evaluate(particle_sub_group, syms, components,
+                                         physval);
+
     } else {
       auto global_coeffs = this->field->GetCoeffs();
       this->function_evaluate_basis->evaluate(particle_sub_group, sym, 0,
@@ -153,9 +157,9 @@ FieldEvaluate<MultiRegions::DisContField>::evaluate(Sym<REAL> sym);
 extern template void
 FieldEvaluate<MultiRegions::ContField>::evaluate(Sym<REAL> sym);
 extern template void FieldEvaluate<MultiRegions::DisContField>::evaluate(
-    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym);
+    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym, const int);
 extern template void FieldEvaluate<MultiRegions::ContField>::evaluate(
-    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym);
+    ParticleSubGroupSharedPtr particle_sub_group, Sym<REAL> sym, const int);
 } // namespace NESO
 
 #endif

@@ -74,7 +74,7 @@ void NESOReader::read_boundary_regions() {
 
   // Look for all data in BOUNDARYREGIONS block.
   conditions = docHandle.FirstChildElement("NEKTAR")
-                   .FirstChildElement("CONDITIONS")
+                   .FirstChildElement("NESO")
                    .Element();
 
   TiXmlElement *boundaryRegions =
