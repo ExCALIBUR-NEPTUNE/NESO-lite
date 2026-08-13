@@ -164,8 +164,13 @@ protected:
         default_local_size);
 
     const int local_mem_num_items = max_total_nummodes_sum * local_size;
-    const size_t outer_size =
-        get_particle_loop_global_size(mpi_rank_dat, local_size);
+    
+    const std::size_t max_occupancy = *std::max_element(
+        selection.h_npart_cell, selection.h_npart_cell + selection.ncell);
+    if (max_occupancy == 0) {
+      return;
+    }
+    const std::size_t outer_size = get_next_multiple(max_occupancy, local_size);
 
     sycl::range<2> cell_iterset_range{static_cast<size_t>(cells_iterset_size),
                                       static_cast<size_t>(outer_size)};
