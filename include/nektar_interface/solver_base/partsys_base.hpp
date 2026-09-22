@@ -54,7 +54,7 @@ public:
   void add_params_report();
 
   /// @brief Clear up memory related to the particle system
-  void free();
+  virtual void free();
 
   /**
    * @brief Check whether particle output is scheduled for \p step.

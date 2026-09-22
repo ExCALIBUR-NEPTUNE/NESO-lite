@@ -59,7 +59,8 @@ multiply_by_inverse_mass_matrix(std::shared_ptr<DisContField> &field,
  * property. A standard L2 Galerkin projection is performed to compute the DOFs
  * which are then stored on the Nektar++ object.
  */
-template <typename T> class FieldProject : GeomToExpansionBuilder {
+template <typename T, bool APPEND = false>
+class FieldProject : GeomToExpansionBuilder {
 
 private:
   std::vector<std::shared_ptr<T>> fields;
@@ -77,7 +78,7 @@ private:
   std::vector<double> testing_host_rhs;
 
 public:
-  ~FieldProject(){};
+  ~FieldProject() {};
 
   /**
    * Construct a new instance to project particle data from the given
@@ -92,7 +93,7 @@ public:
   FieldProject(std::shared_ptr<T> field, ParticleGroupSharedPtr particle_group,
                CellIDTranslationSharedPtr cell_id_translation)
       : FieldProject(std::vector<std::shared_ptr<T>>({field}), particle_group,
-                     cell_id_translation){
+                     cell_id_translation) {
 
         };
 
@@ -386,14 +387,20 @@ public:
         NESOASSERT(std::isfinite(global_coeffs[cx]),
                    "A projection LHS value is nan.");
         // set the coefficients on the function
-        this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+        if constexpr (APPEND) {
+          NekDouble coeff = this->fields[fieldx]->GetCoeff(cx);
+          this->fields[fieldx]->SetCoeff(cx, coeff + global_coeffs[cx]);
+        } else {
+          this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+        }
       }
       // set the values at the quadrature points of the function to correspond
       // to the DOFs we just computed.
       for (int cx = 0; cx < tot_points; cx++) {
         global_phys[cx] = 0.0;
       }
-      this->fields[fieldx]->BwdTrans(global_coeffs, global_phys);
+      this->fields[fieldx]->BwdTrans(this->fields[fieldx]->GetCoeffs(),
+                                     global_phys);
       this->fields[fieldx]->SetPhys(global_phys);
     }
   }
@@ -514,14 +521,20 @@ public:
         NESOASSERT(std::isfinite(global_coeffs[cx]),
                    "A projection LHS value is nan.");
         // set the coefficients on the function
-        this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+        if constexpr (APPEND) {
+          NekDouble coeff = this->fields[fieldx]->GetCoeff(cx);
+          this->fields[fieldx]->SetCoeff(cx, coeff + global_coeffs[cx]);
+        } else {
+          this->fields[fieldx]->SetCoeff(cx, global_coeffs[cx]);
+        }
       }
       // set the values at the quadrature points of the function to correspond
       // to the DOFs we just computed.
       for (int cx = 0; cx < tot_points; cx++) {
         global_phys[cx] = 0.0;
       }
-      this->fields[fieldx]->BwdTrans(global_coeffs, global_phys);
+      this->fields[fieldx]->BwdTrans(this->fields[fieldx]->GetCoeffs(),
+                                     global_phys);
       this->fields[fieldx]->SetPhys(global_phys);
     }
   }
@@ -570,6 +583,19 @@ extern template void FieldProject<MultiRegions::DisContField>::project(
     std::shared_ptr<ParticleSubGroup> particle_sub_group,
     std::vector<Sym<REAL>> syms, std::vector<int> components);
 extern template void FieldProject<MultiRegions::ContField>::project(
+    std::shared_ptr<ParticleSubGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
+
+extern template void FieldProject<MultiRegions::DisContField, true>::project(
+    std::shared_ptr<ParticleGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
+extern template void FieldProject<MultiRegions::ContField, true>::project(
+    std::shared_ptr<ParticleGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
+extern template void FieldProject<MultiRegions::DisContField, true>::project(
+    std::shared_ptr<ParticleSubGroup> particle_sub_group,
+    std::vector<Sym<REAL>> syms, std::vector<int> components);
+extern template void FieldProject<MultiRegions::ContField, true>::project(
     std::shared_ptr<ParticleSubGroup> particle_sub_group,
     std::vector<Sym<REAL>> syms, std::vector<int> components);
 

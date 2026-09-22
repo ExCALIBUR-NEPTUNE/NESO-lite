@@ -529,6 +529,14 @@ uniform_within_elements(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
                         std::vector<int> &cells, const REAL tol = 1.0e-12,
                         std::optional<std::mt19937> rng_in = std::nullopt);
 std::mt19937
+weighted_within_elements(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
+                         ExpListSharedPtr exp_list, const int npart_per_cell,
+                         std::vector<std::vector<double>> &positions,
+                         std::vector<int> &cells, std::vector<double> &weights,
+                         const REAL tol = 1.0e-12,
+                         std::optional<std::mt19937> rng_in = std::nullopt);
+
+std::mt19937
 dist_within_extents(Nektar::SpatialDomains::MeshGraphSharedPtr graph,
                     Nektar::LibUtilities::EquationSharedPtr eqn, const double t,
                     const int npart,
