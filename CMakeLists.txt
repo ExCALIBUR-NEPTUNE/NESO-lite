@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 option(ENABLE_NESO_PROFILING "Enable built-in profiling" OFF)
-option(NESO_BUILD_SOLVERS "Build the built-in solvers" ON)
+
 option(NESO_BUILD_TESTS
        "Build unit tests for this project and register with ctest" ON)
 option(NESO_BUILD_TOOLS "Builds supplemental tools." ON)
@@ -245,9 +245,7 @@ set(HEADER_FILES
     ${INC_DIR}/nektar_interface/utility_sycl.hpp
     ${INC_DIR}/particle_utility/particle_initialisation_line.hpp
     ${INC_DIR}/particle_utility/position_distribution.hpp
-    ${INC_DIR}/solvers/helpers/implicit_helper.hpp
-    ${INC_DIR}/solvers/solver_callback_handler.hpp
-    ${INC_DIR}/solvers/solver_runner.hpp)
+    )
 
 set(HEADER_FILES_IGNORE ${INC_DIR}/revision.hpp)
 check_file_list(${INC_DIR} hpp "${HEADER_FILES}" "${HEADER_FILES_IGNORE}")
@@ -275,11 +273,6 @@ add_sycl_to_target(TARGET ${NESO_LIBRARY_NAME} SOURCES ${LIB_SRC_FILES})
 
 # find MPI
 find_package(MPI REQUIRED)
-
-# Solvers
-if(NESO_BUILD_SOLVERS)
-  add_subdirectory(solvers)
-endif()
 
 # Tools
 if(NESO_BUILD_TOOLS)
