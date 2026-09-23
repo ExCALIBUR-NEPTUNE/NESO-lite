@@ -38,12 +38,14 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
   const int nrow_max = mpi_rank_dat->cell_dat.get_nrow_max();
   auto graph = this->particle_mesh_interface->graph;
 
-  CellDataT<REAL> particle_positions(sycl_target, nrow_max,
-                                     position_dat->ncomp);
-  CellDataT<REAL> ref_particle_positions(sycl_target, nrow_max,
-                                         ref_position_dat->ncomp);
-  CellDataT<INT> mpi_ranks(sycl_target, nrow_max, mpi_rank_dat->ncomp);
-  CellDataT<INT> cell_ids(sycl_target, nrow_max, cell_id_dat->ncomp);
+  CellData<REAL> particle_positions = std::make_shared<CellDataT<REAL>>(
+      sycl_target, nrow_max, position_dat->ncomp);
+  CellData<REAL> ref_particle_positions = std::make_shared<CellDataT<REAL>>(
+      sycl_target, nrow_max, ref_position_dat->ncomp);
+  CellData<INT> mpi_ranks = std::make_shared<CellDataT<INT>>(
+      sycl_target, nrow_max, mpi_rank_dat->ncomp);
+  CellData<INT> cell_ids = std::make_shared<CellDataT<INT>>(
+      sycl_target, nrow_max, cell_id_dat->ncomp);
 
   EventStack event_stack;
 
@@ -81,7 +83,7 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
     for (int rowx = 0; rowx < nrow; rowx++) {
 
       // Is this particle already binned into a cell?
-      if ((mpi_ranks)[1][rowx] < 0) {
+      if (mpi_ranks->at(rowx, 1) < 0) {
         if (Debug::enabled(Debug::MOVEMENT_LEVEL)) {
           nprint("MapParticlesHost::map");
           nprint("\tcell:", cellx, "layer:", rowx);
@@ -89,8 +91,8 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
 
         // copy the particle position into a nektar++ point format
         for (int dimx = 0; dimx < ndim; dimx++) {
-          global_coord[dimx] = particle_positions[dimx][rowx];
-          local_coord[dimx] = ref_particle_positions[dimx][rowx];
+          global_coord[dimx] = particle_positions->at(rowx, dimx);
+          local_coord[dimx] = ref_particle_positions->at(rowx, dimx);
         }
 
         if (Debug::enabled(Debug::MOVEMENT_LEVEL)) {
@@ -120,10 +122,10 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
                 contains_point_3d(geom_3d, global_coord, local_coord, tol);
           }
           if (geom_found) {
-            (mpi_ranks)[1][rowx] = rank;
-            (cell_ids)[0][rowx] = ex;
+            mpi_ranks->at(rowx, 1) = rank;
+            cell_ids->at(rowx, 0) = ex;
             for (int dimx = 0; dimx < ndim; dimx++) {
-              ref_particle_positions[dimx][rowx] = local_coord[dimx];
+              ref_particle_positions->at(rowx, dimx) = local_coord[dimx];
             }
             break;
           }
@@ -140,13 +142,13 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_triangles) {
 
-              geom_found = contains_point_2d(remote_geom->geom.get(), global_coord,
-                                             local_coord, tol);
+              geom_found = contains_point_2d(remote_geom->geom.get(),
+                                             global_coord, local_coord, tol);
               if (geom_found) {
-                (mpi_ranks)[1][rowx] = remote_geom->rank;
-                (cell_ids)[0][rowx] = remote_geom->id;
+                mpi_ranks->at(rowx, 1) = remote_geom->rank;
+                cell_ids->at(rowx, 0) = remote_geom->id;
                 for (int dimx = 0; dimx < ndim; dimx++) {
-                  ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                  ref_particle_positions->at(rowx, dimx) = local_coord[dimx];
                 }
                 break;
               }
@@ -156,13 +158,13 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_quads) {
 
-              geom_found = contains_point_2d(remote_geom->geom.get(), global_coord,
-                                             local_coord, tol);
+              geom_found = contains_point_2d(remote_geom->geom.get(),
+                                             global_coord, local_coord, tol);
               if (geom_found) {
-                (mpi_ranks)[1][rowx] = remote_geom->rank;
-                (cell_ids)[0][rowx] = remote_geom->id;
+                mpi_ranks->at(rowx, 1) = remote_geom->rank;
+                cell_ids->at(rowx, 0) = remote_geom->id;
                 for (int dimx = 0; dimx < ndim; dimx++) {
-                  ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                  ref_particle_positions->at(rowx, dimx) = local_coord[dimx];
                 }
                 break;
               }
@@ -173,13 +175,13 @@ void MapParticlesHost::map(ParticleGroup &particle_group, const int map_cell) {
             for (auto &remote_geom :
                  this->particle_mesh_interface->remote_geoms_3d) {
 
-              geom_found = contains_point_3d(remote_geom->geom.get(), global_coord,
-                                             local_coord, tol);
+              geom_found = contains_point_3d(remote_geom->geom.get(),
+                                             global_coord, local_coord, tol);
               if (geom_found) {
-                (mpi_ranks)[1][rowx] = remote_geom->rank;
-                (cell_ids)[0][rowx] = remote_geom->id;
+                mpi_ranks->at(rowx, 1) = remote_geom->rank;
+                cell_ids->at(rowx, 0) = remote_geom->id;
                 for (int dimx = 0; dimx < ndim; dimx++) {
-                  ref_particle_positions[dimx][rowx] = local_coord[dimx];
+                  ref_particle_positions->at(rowx, dimx) = local_coord[dimx];
                 }
                 break;
               }

@@ -221,8 +221,8 @@ public:
 
     // space to store the reference positions for each particle
     const int particle_ndim = ref_position_dat->ncomp;
-    CellDataT<REAL> ref_positions_tmp(this->sycl_target, nrow_max,
-                                      particle_ndim);
+    CellData<REAL> ref_positions_tmp = std::make_shared<CellDataT<REAL>>(
+        this->sycl_target, nrow_max, particle_ndim);
 
     // space on host to store the values TODO find a way to fetch only one
     // component
@@ -331,7 +331,7 @@ public:
           local_coord[dimx] = 0.0;
         }
         for (int dimx = 0; dimx < particle_ndim; dimx++) {
-          local_coord[dimx] = ref_positions_tmp[dimx][rowx];
+          local_coord[dimx] = ref_positions_tmp->at(rowx, dimx);
         }
         nektar_expansion_0->LocCoordToLocCollapsed(local_coord,
                                                    local_collapsed);
